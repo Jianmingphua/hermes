@@ -219,3 +219,17 @@ See `references/write-file-workaround.md` for the base64 technique needed when w
 - If no amount found → ask: "How much was it?"
 - If no description after removing amount/date/payment → ask: "What was this expense for?"
 - Re-prompt on unclear input (max 2 attempts, then skip and ask user to rephrase)
+
+## Voice Memo Transcription Handling
+
+Voice messages arrive as pre-transcribed text from the STT layer. Transcription errors are common — especially on short phrases, brand names, and accents.
+
+**Rules for voice input:**
+1. **Always interpret voice memos as English first.** Never assume Malay, BM, or other languages unless the user explicitly uses non-English words in their *text* messages too.
+2. **If the transcription sounds like a different language** (e.g., "suruh kagak" for "can of Coke"), map it to the most plausible English phrase and proceed — do NOT ask "is this Malay?" or attempt translation.
+3. **Apply common STT error corrections** before parsing:
+   - Misheard brand/item names → correct to likely English words (e.g., "suruh" → part of "saya mempunyai" not a place name)
+   - Garbled words after removing amount/date → if the description doesn't make sense, ask once; don't invent a Malay translation
+4. **Confirm as normal** — the confirmation step catches most transcription errors. If your parsed description looks wrong, the user will say "no" or "edit" at confirmation time.
+5. **Short phrases are most error-prone**: Single-item voice memos ("$1.20 can of Coke") produce the worst transcriptions. For short phrases, correct-and-proceed — do NOT ask "did you mean X in Malay?" Map garbled output to the most plausible English phrase, confirm the parsed expense as normal, and let the user correct at confirmation time if wrong.
+6. **STT quality tip**: If voice transcription is consistently poor, suggest upgrading the local model: `hermes config set stt.local.model small` (from default `base`). Users on ARM64 can use `small`; `medium` is noticeably slower. Alternatively, switch to Groq Whisper (free tier, set `GROQ_API_KEY` + `hermes config set stt.provider groq`).

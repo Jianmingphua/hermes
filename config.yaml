@@ -62,49 +62,42 @@ approvals:
   timeout: 60
 auxiliary:
   approval:
-    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 30
   compression:
-    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 120
   curator:
-    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 600
   kanban_decomposer:
-    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 180
   mcp:
-    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 30
   profile_describer:
-    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 60
   session_search:
-    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     max_concurrency: 3
@@ -112,28 +105,24 @@ auxiliary:
     provider: auto
     timeout: 30
   skills_hub:
-    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 30
   title_generation:
-    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 30
   triage_specifier:
-    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 120
   vision:
-    api_key: '***REDACTED***'
     base_url: ''
     download_timeout: 30
     extra_body: {}
@@ -141,7 +130,6 @@ auxiliary:
     provider: auto
     timeout: 120
   web_extract:
-    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
@@ -349,10 +337,10 @@ mattermost:
   require_mention: true
 memory:
   flush_min_turns: 6
-  memory_char_limit: 2200
+  memory_char_limit: 5000
   memory_enabled: true
   nudge_interval: 10
-  provider: ''
+  provider: holographic
   user_char_limit: 1375
   user_profile_enabled: true
 model:
@@ -466,12 +454,13 @@ streaming:
 stt:
   enabled: true
   local:
-    language: ''
-    model: base
+    language: en
+    model: medium
   mistral:
     model: voxtral-mini-latest
   openai:
-    model: whisper-1
+    base_url: https://openrouter.ai/api/v1
+    model: openai/whisper-large-v3
   provider: local
 telegram:
   allowed_chats: ''
@@ -523,7 +512,7 @@ toolsets:
 - hermes-cli
 tts:
   edge:
-    voice: en-US-AriaNeural
+    voice: en-SG-LunaNeural
   elevenlabs:
     model_id: eleven_multilingual_v2
     voice_id: pNInz6obpgDQGcFmaJgB

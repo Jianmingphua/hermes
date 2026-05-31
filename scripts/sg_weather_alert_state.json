@@ -1,1 +1,1 @@
-{"alert": "light_rain", "locations": ["Tampines", "Seletar"], "valid_from": "2026-05-29T12:00", "valid_to": "2026-05-29T14:00"}
+{"alert": "clear", "locations": [], "valid_from": null, "valid_to": null, "cleared_at": "2026-05-30"}

@@ -149,6 +149,7 @@ Conditions that constitute bad weather:
 ## Notes
 
 - All APIs are free, no API key needed
+- **v2 APIs block requests without a User-Agent header.** Always use `curl -s -A "Mozilla/5.0"` or set a `User-Agent` header programmatically. Python's `urllib` sends a default UA that gets 403'd.
 - v2 data updates every 1-5 minutes
 - v1 forecast covers the next 2 hours
 - For "Jurong" queries: check Jurong East, Jurong Island, and Jurong West separately
