@@ -1,8 +1,10 @@
-_config_version: 24
+_config_version: 26
 agent:
   api_max_retries: 3
   clarify_timeout: 600
   disabled_toolsets: []
+  environment_hint: ''
+  environment_probe: true
   gateway_auto_continue_freshness: 3600
   gateway_notify_interval: 180
   gateway_timeout: 1800
@@ -52,6 +54,7 @@ agent:
   reasoning_effort: medium
   restart_drain_timeout: 180
   service_tier: ''
+  task_completion_guidance: true
   tool_use_enforcement: auto
   verbose: false
 approvals:
@@ -62,36 +65,42 @@ approvals:
   timeout: 60
 auxiliary:
   approval:
+    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 30
   compression:
+    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 120
   curator:
+    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 600
   kanban_decomposer:
+    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 180
   mcp:
+    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 30
   profile_describer:
+    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
@@ -105,24 +114,28 @@ auxiliary:
     provider: auto
     timeout: 30
   skills_hub:
+    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 30
   title_generation:
+    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 30
   triage_specifier:
+    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
     provider: auto
     timeout: 120
   vision:
+    api_key: '***REDACTED***'
     base_url: ''
     download_timeout: 30
     extra_body: {}
@@ -130,6 +143,7 @@ auxiliary:
     provider: auto
     timeout: 120
   web_extract:
+    api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
     model: ''
@@ -151,7 +165,9 @@ browser:
   auto_local_for_private_urls: '***REDACTED***'
   camofox:
     adopt_existing_tab: false
+    loopback_host_alias: host.docker.internal
     managed_persistence: false
+    rewrite_loopback_urls: false
     session_key: ''
     user_id: ''
   cdp_url: ''
@@ -174,7 +190,8 @@ code_execution:
   max_tool_calls: 50
   mode: project
   timeout: 300
-command_allowlist: []
+command_allowlist:
+- find -delete
 compression:
   abort_on_summary_failure: false
   enabled: true
@@ -197,6 +214,7 @@ curator:
   enabled: true
   interval_hours: 168
   min_idle_hours: 2
+  prune_builtins: true
   stale_after_days: 30
 custom_providers:
 - api_key: '***REDACTED***'
@@ -210,7 +228,7 @@ dashboard:
     portal_url: ''
   public_url: ''
   show_token_analytics: '***REDACTED***'
-  theme: default
+  theme: mono
 delegation:
   api_key: '***REDACTED***'
   api_mode: ''
@@ -250,13 +268,18 @@ display:
   file_mutation_verifier: true
   final_response_markdown: strip
   inline_diffs: true
+  interface: cli
   interim_assistant_messages: true
   language: en
   mouse_tracking: 'off'
   persistent_output: true
   persistent_output_max_lines: 200
   personality: kawaii
-  platforms: {}
+  platforms:
+    discord:
+      streaming: false
+    telegram:
+      streaming: true
   resume_display: full
   resume_exchanges: 10
   resume_max_assistant_chars: 200
@@ -278,8 +301,10 @@ display:
   tool_progress: all
   tool_progress_command: false
   tool_progress_overrides: {}
+  tui_agents_nudge: true
   tui_auto_resume_recent: false
   tui_status_indicator: kaomoji
+  turn_completion_explainer: true
   user_message_preview:
     first_lines: 2
     last_lines: 2
@@ -287,6 +312,7 @@ fallback_providers: []
 file_read_max_chars: 100000
 gateway:
   media_delivery_allow_dirs: []
+  strict: false
   trust_recent_files: true
   trust_recent_files_seconds: 600
 goals:
@@ -307,6 +333,7 @@ kanban:
   dispatch_interval_seconds: 60
   dispatch_stale_timeout_seconds: 14400
   failure_limit: 2
+  max_in_progress_per_profile: null
   orchestrator_profile: ''
   worker_log_backup_count: 1
   worker_log_rotate_bytes: 2097152
@@ -352,7 +379,7 @@ model:
 model_catalog:
   enabled: true
   providers: {}
-  ttl_hours: 24
+  ttl_hours: 1
   url: https://hermes-agent.nousresearch.com/docs/api/model-catalog.json
 network:
   force_ipv4: false
@@ -439,6 +466,7 @@ sessions:
   write_json_snapshots: false
 skills:
   creation_nudge_interval: 15
+  disabled: []
   external_dirs: []
   guard_agent_created: false
   inline_shell: false
@@ -450,8 +478,18 @@ slack:
   free_response_channels: ''
   require_mention: true
 streaming:
+  buffer_threshold: 24
+  cursor: " \u2589"
+  edit_interval: 0.8
   enabled: false
+  fresh_final_after_seconds: 60.0
+  transport: auto
 stt:
+  elevenlabs:
+    diarize: false
+    language_code: ''
+    model_id: scribe_v2
+    tag_audio_events: false
   enabled: true
   local:
     language: en
@@ -508,6 +546,12 @@ tool_output:
   max_bytes: 50000
   max_line_length: 2000
   max_lines: 2000
+tools:
+  tool_search:
+    enabled: auto
+    max_search_limit: 20
+    search_default_limit: 5
+    threshold_pct: 10
 toolsets:
 - hermes-cli
 tts:

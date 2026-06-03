@@ -13,10 +13,30 @@ Interactive expense logging via Telegram. Parse natural language, confirm ambigu
 - **Sheet name**: `Expenses` (tab 1)
 - **Columns**: Date | Person | Category | Description | Amount (SGD) | Payment Method | Receipt | Notes
 
-## Scripts
+## Script Reference
 
-- `scripts/budget_tracker.py` — Append an expense row to the Sheet. Called with `--date`, `--person`, `--category`, `--description`, `--amount`, `--payment`, `--receipt`, `--notes`.
-- `scripts/budget_today_check.py` — Check if any expenses were logged today (SGT). Prints `FOUND:N` or `NONE`. Used by the daily reminder cron job.
+### `scripts/budget_tracker.py`
+
+Three mutually exclusive operations controlled by flags:
+
+| Operation | Flags | Purpose |
+|-----------|-------|---------|
+| **Append** | `--category`, `--description`, `--amount`, plus optional `--date`, `--person`, `--payment`, `--receipt`, `--notes`, `--discount`, `--discount-amount` | Add a new expense row |
+| **Edit cell** | `--edit-row N --field <name> --value <val>` | Fix a single cell in-place without deleting the row |
+| **Delete** | `--delete-row N` | Remove an entire row |
+
+**Defaults:**
+- `--date` → today (SGT). No need to pass most of the time.
+- `--person` → `"You"` (overridable per recognized user)
+- `--payment` → auto-detected from description keywords (PayNow, NETS, Visa, etc.), falls back to `Cash`
+- `--receipt` → `"No"`
+
+**Discount flags (use when user mentions discount):**
+- `--discount 15` → amount is **pre-discount** price; paid amount (`amount × 0.85`) auto-added to notes
+- `--discount-amount 2` → flat $2 subtracted from amount
+
+### `scripts/budget_today_check.py`
+Check if any expenses were logged today (SGT). Prints `FOUND:N` or `NONE`. Used by the daily reminder cron job.
 
 ## Reminder Cron Job
 
@@ -59,7 +79,9 @@ The user mentions any spending/expense activity:
 2. **Person**: Default "You" for recognized user. If user says "wife: lunch $10" or "for wife", use "Wife".
 3. **Description**: The item description. Remove amount/date/payment keywords first. E.g., "lunch $12 cash" → "Lunch".
 4. **Amount**: Look for `$XX`, `XX SGD`, `S$XX`, `XX dollars`. Default currency: SGD.
+   - **Discount handling — RULE**: If the user mentions a discount *in the same message as the amount* (e.g., "$11.50, there's a 15% discount"), parse and log with `--discount 15` immediately — the stated amount is the **pre-discount** price. If the user sends the amount first and the discount as a **follow-up correction** (e.g., user: "$11.50 for lunch" → agent logs → user: "there's a 15% discount not included"), edit the existing row: use `--edit-row N --field notes --value "...discount clarification..."` while preserving the original amount. Do NOT ask "was that before or after discount?" — record what the user stated and let follow-up corrections drive edits.
 5. **Payment Method**: Keywords:
+   - If no keyword found, default to **Cash**.
    - cash → Cash
    - card, credit, visa, mastercard → Credit Card
    - paynow, paylah, pay now, pay lah → PayNow / PayLah
@@ -88,9 +110,15 @@ The user mentions any spending/expense activity:
 
 ## Confirm Before Writing
 
-ALWAYS show a full summary and wait for explicit user confirmation before writing to the Sheet. Never write without user confirmation.
+**Confirm only when ambiguous** — not for every expense.
 
-Show the summary using this exact format (use Telegram HTML parse mode via tg_inline_kb.py if available, otherwise plain text):
+- **No confirmation needed**: User gives a clear amount and description in one message (e.g., "lunch $11.50", "grab $8"). Parse, log immediately, reply with the logged summary.
+- **Confirm**: Amount is missing, unclear, or the message contains multiple expenses. Also confirm if the parsed description looks wrong or truncated.
+- **Follow-up corrections**: If the user corrects a field after logging, use `--edit-row N --field <name> --value <val>` — never delete+re-append for single-field fixes.
+
+**Default payment method is Cash** if no payment keyword is detected in the description.
+
+For the rare case a confirmation IS needed, use this format:
 
 ```
 📝 New Expense:
@@ -109,18 +137,6 @@ Reply with:
   2️⃣ no      → cancel
   3️⃣ edit    → change a field
 ```
-
-Accepted confirmations: "1", "yes", "confirm", "ok", "yeah", "yup"
-Accepted cancellations: "2", "no", "cancel", "nope", "don't", "skip"
-Edit: "3", "edit", or "edit <field name>"
-
-If user says no/cancel → reply "❌ Cancelled." and do nothing.
-
-If user says edit → ask which field, get the new value, re-show the summary with the updated field highlighted, wait for confirmation again.
-
-If any field is ambiguous (amount not clear, date unclear, person not default), ask for that field specifically BEFORE showing the summary. Only show the summary once all fields are resolved.
-
-**Format:** Send the confirmation as a clear text message with numbered options. Keep it scannable — use box-drawing lines and aligned fields.
 
 
 ## Deleting an Expense
@@ -154,50 +170,51 @@ Reply with:
 
 ## Writing to Sheet
 
+### Pitfalls (read these before every write)
+
+**🚨 Pitfall 1 — `default=today_sgt` vs `default=today_sgt()`**: When using a function as an argparse default, you must **call** it (`today_sgt()`, a string) not pass the function object (`today_sgt`, a callable). The function object serializes to a JSON `function` type and crashes the Google Sheets API with `TypeError: Object of type function is not JSON serializable`. If you see this error, check all `default=` arguments in argparse.
+
+**🚨 Pitfall 2 — stale `.pyc` cache**: After editing a Python script, clear `__pycache__` and any `.pyc` files. Stale bytecode from a different Python version (e.g., `.cpython-311.pyc` on a 3.12 install) silently shadows the updated source. Fix: `find /path/to/scripts -name "*.pyc" -delete; rm -rf /path/to/scripts/__pycache__`.
+
+**🚨 Pitfall 3 — user corrections should use `--edit-row`, not delete+re-append**: When the user corrects a field (amount, description, etc.) on an already-logged expense, use `--edit-row N --field <name> --value <val>` to fix the single cell. Only use delete+re-append if the entire row is wrong. This avoids row-number shifts and preserves the original row position.
+
 ### Step 1: Append the row
 ```bash
+# Simple expense — no confirmation needed for clear single-item messages
 python3 /opt/hermes/scripts/budget_tracker.py \
-  --date "2026-05-28" \
-  --person "You" \
   --category "Food & Dining" \
-  --description "Lunch at hawker" \
-  --amount "12.00" \
-  --payment "Cash" \
-  --receipt "No" \
-  --notes ""
+  --description "Lunch" \
+  --amount "11.50" \
+  --discount "15"
 ```
+
+With `--discount`, the original amount is stored and the paid amount (after discount) is auto-calculated in the notes. Use `--discount-amount` for flat discounts.
 
 Expected output: `APPENDED:Expenses!A2:H2`
 
-### Step 2: Verify the row was written
-Read back the last row to confirm the data matches.
+### Step 2: Handle corrections
 
-### Step 3: Reply
-On success: "✅ Logged: Lunch at hawker ($12.00, Cash) — 28 May 2026"
+If the user sends a follow-up correction (wrong amount, wrong description, discount clarification, wrong person):
+
+1. Find the row (usually the most recent append)
+2. Use `--edit-row N --field <name> --value <val>` to fix just that cell
+3. Confirm the correction
+
+E.g., user says "11.5 is before the discount" → edit the notes field to add discount info:
+```bash
+python3 /opt/hermes/scripts/budget_tracker.py --edit-row 24 --field notes --value "Lunch | 15% discount applied, paid ~9.78"
+```
+
+### Step 3: Verify and reply
+
+Read back the row to confirm the data matches.
+
+### Step 4: Reply
+On success: "✅ Logged: Lunch ($11.50, Cash) — 3 Jun 2026"
+On edit: "✅ Updated row 24: Notes → 'Lunch | 15% discount applied, paid ~9.78'"
 On error: "❌ Failed to log. Error: {details}"
 
-### IMPORTANT — Script Creation Pitfall
-When creating or editing Python scripts that reference `~/.hermes/google_token.json` or similar paths:
-- The `write_file` tool **mangles** path strings, replacing segments like `os.path.expanduser("~/.hermes/...")` with truncated versions like `os.pat...`
-- **Workaround via base64** (use `execute_code` to write files that contain these strings):
-  ```python
-  import base64
-  script = '''#!/usr/bin/env python3
-  import os
-  _home = os.path.expanduser("~")
-  _token = os.path.join(_home, ".hermes", "google_token.json")
-  # ... rest of script ...
-  '''
-  encoded = base64.b64encode(script.encode()).decode()
-  # Then write:
-  with open("/path/to/output.py", "w") as f:
-      f.write(base64.b64decode(encoded).decode())
-  ```
-- **Alternative:** Avoid `os.path.expanduser` by using `os.environ.get("HERMES_HOME", "/opt/hermes")` or hardcoding `/opt/hermes/.hermes/...` if the environment is stable
-
-See `references/write-file-workaround.md` for full details.
-
-## Cron Job Reminders
+- Multiple expenses
 
 When creating cron jobs that should deliver to Telegram:
 - **Always** set `deliver` to the target (e.g., `'telegram'`) — default is `'local'` which means NO delivery
