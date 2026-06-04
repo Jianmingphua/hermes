@@ -192,6 +192,7 @@ code_execution:
   timeout: 300
 command_allowlist:
 - find -delete
+- script execution via -e/-c flag
 compression:
   abort_on_summary_failure: false
   enabled: true
