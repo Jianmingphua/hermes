@@ -24,8 +24,8 @@
 
 ## Infrastructure & Platform
 
-- **Host**: Oracle Cloud Infrastructure (OCI) ARM64 VPS, Ubuntu Linux 6.17.0-1011-oracle
-- **Runtime**: Python 3.11.15 (system), Python 3.12 (pip), `uv` package manager
+- **Host**: Oracle Cloud Infrastructure (OCI) ARM64 VPS, Ubuntu Linux
+- **Runtime**: Python 3.11 (system), Python 3.12 (pip), `uv` package manager
 - **Container**: Docker (for Firecrawl self-hosting)
 - **Model**: `openrouter/owl-alpha` via OpenRouter
 - **Hermes Home**: `/opt/hermes` (`~/.hermes`)
@@ -38,18 +38,18 @@
 - **Primary channel**: Telegram DM
 - **DM pairing flow** enabled — unknown users receive pairing codes
 - **Paired users**:
-  - **JM** (Phua Jian Ming) — Telegram ID: `137588943` → maps to "You" in Budget Tracker
-  - **Sheryl Tay** (Wife) — Telegram ID: `175822942` → maps to "Wife" in Budget Tracker
+  - **User** — Telegram ID: `<USER_TG_ID>` → maps to "You" in Budget Tracker
+  - **Wife** — Telegram ID: `<WIFE_TG_ID>` → maps to "Wife" in Budget Tracker
 - **Quiet hours**: 22:00–08:00 SGT (14:00–00:00 UTC) — all cron jobs respect this window
-- **Shermes profile**: `sheryl` profile created with restricted toolset (awaiting per-user profile routing — Hermes issue #33548)
+- **Secondary profile**: Restricted profile created for spouse (awaiting per-user profile routing — Hermes issue #33548)
 
 ---
 
 ## Google Workspace Integration
 
-- **Auth**: OAuth 2.0 token at `~/.hermes/google_token.json`
+- **Auth**: OAuth 2.0 (token stored locally)
 - **Access**: Gmail, Calendar, Drive, Docs, Sheets via `gws` CLI
-- **Hermes folder**: `1nJIfjh97WPj9MkV4C_WdFG9VbfFV8en7` (root Google Drive folder)
+- **Hermes folder**: `<GDRIVE_FOLDER_ID>` (root Google Drive folder)
 - **Budget Tracker folder**: "Budget Tracker" subfolder inside Hermes
 
 ---
@@ -60,8 +60,8 @@
 Interactive expense logging via Telegram DM. Natural language parsing → Google Sheets.
 
 ### Spreadsheet
-- **Sheet ID**: `1ET7l9dwYouJygbLApuzHBJ5ZaWc3XtrZ1oLVfLtrvv8`
-- **URL**: https://docs.google.com/spreadsheets/d/1ET7l9dwYouJygbLApuzHBJ5ZaWc3XtrZ1oLVfLtrvv8/edit
+- **Sheet ID**: `<BUDGET_SHEET_ID>`
+- **URL**: `https://docs.google.com/spreadsheets/d/<BUDGET_SHEET_ID>/edit`
 - **Tab**: `Expenses`
 - **Columns**: Date | Person | Category | Description | Amount (SGD) | Payment Method | Receipt | Notes
 
@@ -73,7 +73,7 @@ Interactive expense logging via Telegram DM. Natural language parsing → Google
 
 ### Features
 - **Natural language parsing**: "lunch $12 cash" → auto-extracts amount, payment, category
-- **Multi-user**: JM → "You", Sheryl → "Wife"
+- **Multi-user**: User → "You", Wife → "Wife"
 - **Confirmation flow**: Always shows summary before writing; user confirms with "yes"/"no"/"edit"
 - **Edit support**: `--edit-row N --field amount --value 11.50`
 - **Delete support**: `--delete-row N` with confirmation
@@ -84,7 +84,7 @@ Interactive expense logging via Telegram DM. Natural language parsing → Google
 
 ### Cron
 - **Daily reminder** at 9pm SGT (13:00 UTC) — checks today's expenses, sends summary or reminder
-- **Job ID**: `bbd34da30b6e`
+- **Job ID**: `<CRON_JOB_ID>`
 - **Silent during**: 22:00–08:00 SGT
 
 ---
@@ -110,7 +110,7 @@ Light Rain, Light Showers, Showers, Rain, Moderate Rain/Showers, Heavy Rain/Show
 
 ### Cron
 - **Every 15 minutes**
-- **Job ID**: `586e2c4a07b3`
+- **Job ID**: `<CRON_JOB_ID>`
 - **Delivery**: Telegram (silent unless alert — only delivers on change)
 
 ---
@@ -118,7 +118,7 @@ Light Rain, Light Showers, Showers, Rain, Moderate Rain/Showers, Heavy Rain/Show
 ## RSS Feed Monitoring
 
 ### Overview
-Monitors Mike Dietrich's blog for new articles, pushes to Telegram.
+Monitors a blog for new articles, pushes to Telegram.
 
 ### Tool
 - `blogwatcher-cli` at `/opt/hermes/bin/blogwatcher-cli`
@@ -126,7 +126,7 @@ Monitors Mike Dietrich's blog for new articles, pushes to Telegram.
 
 ### Cron
 - **Every 1 hour**
-- **Job ID**: `9992054ce7dd`
+- **Job ID**: `<CRON_JOB_ID>`
 - **Delivery**: Telegram (silent if no new articles)
 - **Sleep window**: 22:00–08:00 SGT (no delivery)
 
@@ -136,8 +136,8 @@ Monitors Mike Dietrich's blog for new articles, pushes to Telegram.
 
 ### Instance
 - **Type**: Oracle AI Database 26ai
-- **Region**: us-ashburn-1
-- **Port**: 1522
+- **Region**: `<ORACLE_REGION>`
+- **Port**: `<ORACLE_PORT>`
 - **Network**: Private subnet, VCN whitelisted
 - **Auth**: TLS walletless connection
 
@@ -182,7 +182,7 @@ Fully autonomous forex trading bot running on OANDA demo account with multi-conf
 
 ### Account
 - **Broker**: OANDA
-- **Account ID**: 101-003-39433697-001
+- **Account ID**: `<OANDA_ACCOUNT_ID>`
 - **Balance**: 100,000 SGD (demo/practice)
 - **Mode**: Live execution (`--execute`)
 
@@ -261,7 +261,7 @@ Fully autonomous forex trading bot running on OANDA demo account with multi-conf
 │   ├── active_trades.json       # Monitored trades + history
 │   └── circuit_breaker.json     # Circuit breaker state
 ├── requirements.txt
-└── venv/                    # Python 3.11 virtual environment
+└── venv/                    # Python virtual environment
 ```
 
 ### Backtest Results
@@ -278,7 +278,7 @@ Fully autonomous forex trading bot running on OANDA demo account with multi-conf
 
 ### Cron
 - **Every 15 minutes** (matching M15 timeframe)
-- **Job ID**: `f841714b0c1a`
+- **Job ID**: `<CRON_JOB_ID>`
 - **Name**: `forex-bot-m15`
 - **Delivery**: Telegram alert only when orders are placed (watchdog pattern — silent otherwise)
 - **Live execution**: `--execute` flag active
@@ -347,10 +347,10 @@ python -m pytest tests/ -v
 
 | Job ID | Name | Schedule | Purpose | Delivery |
 |--------|------|----------|---------|----------|
-| `586e2c4a07b3` | SG Weather Alert | Every 15 min | Monitor Tampines & Seletar weather | Telegram (silent unless alert) |
-| `9992054ce7dd` | RSS Feed - Mike Dietrich Blog | Every 1 hour | Scan blog for new articles | Telegram (silent if no new articles) |
-| `bbd34da30b6e` | Budget Tracker Daily Reminder | Daily 9pm SGT | Check today's expenses, send summary | Telegram (silent 22:00–08:00 SGT) |
-| `f841714b0c1a` | forex-bot-m15 | Every 15 min | Run forex trading bot scan + execute | Telegram (silent unless orders placed) |
+| `<CRON_JOB_ID>` | SG Weather Alert | Every 15 min | Monitor Tampines & Seletar weather | Telegram (silent unless alert) |
+| `<CRON_JOB_ID>` | RSS Feed Monitor | Every 1 hour | Scan blog for new articles | Telegram (silent if no new articles) |
+| `<CRON_JOB_ID>` | Budget Tracker Daily Reminder | Daily 9pm SGT | Check today's expenses, send summary | Telegram (silent 22:00–08:00 SGT) |
+| `<CRON_JOB_ID>` | forex-bot-m15 | Every 15 min | Run forex trading bot scan + execute | Telegram (silent unless orders placed) |
 
 ### Cron Design Principles
 - **Watchdog pattern**: All cron jobs stay silent unless there's something to report
@@ -387,7 +387,7 @@ python -m pytest tests/ -v
 - [ ] **Hermes Self-Health Monitor** — Watch server health, disk, memory, cron job status
 
 ### Infrastructure
-- [ ] Per-user profile routing (Hermes issue #33548) — Sheryl's profile ready, waiting on feature
+- [ ] Per-user profile routing (Hermes issue #33548) — spouse profile ready, waiting on feature
 
 ---
 
