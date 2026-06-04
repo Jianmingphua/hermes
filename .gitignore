@@ -1,0 +1,83 @@
+# Hermes Agent Home - Git Ignore
+
+# === Secrets & Credentials ===
+.hermes/google_token.json
+.hermes/google_client_secret.json
+.hermes/config.yaml
+.hermes/.telegram_bot_token
+.hermes/auth.json
+.hermes/auth.lock
+config/.env
+**/.env
+*.pem
+*.key
+cwallet.sso
+ewallet.p12
+keystore.jks
+ojdbc.properties
+sqlnet.ora
+tnsnames.ora
+truststore.jks
+*.zip
+
+# === Nested Git Repos ===
+.hermes/hermes-agent/
+backups/repo/
+firecrawl/
+ha-config/
+.nvm/
+
+# === Python ===
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# === Logs & Runtime ===
+logs/
+*.log
+.hermes/cron/output/
+.hermes/sessions/
+.hermes/audio_cache/
+.hermes/profiles/
+.hermes/.restart_last_processed.json
+.hermes/.skills_prompt_snapshot.json
+.hermes/.update_check
+.hermes/.hermes_history
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === IDE ===
+.vscode/
+.idea/
+
+# === Docker internals ===
+.docker/buildx/
+.docker/.token_seed
+.docker/.token_seed.lock
+
+# === blogwatcher ===
+.blogwatcher-cli/
+
+# === UV ===
+.config/uv/
+.cache/
+
+# === Systemd ===
+.config/systemd/
+
+# === Bash history ===
+.bash_history
+
+# === Git ===
+.git/
+forex-trading-bot/logs/
+forex-trading-bot/venv/
+forex-trading-bot/__pycache__/
+skills/*/venv/
