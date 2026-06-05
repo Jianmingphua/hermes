@@ -137,7 +137,12 @@ class TechnicalIndicators:
         return df
 
     @staticmethod
-    def generate_signal(df: pd.DataFrame) -> dict:
+    def generate_signal(
+        df: pd.DataFrame,
+        min_conf: int = 2,
+        rsi_ob: int = 70,
+        rsi_os: int = 30,
+    ) -> dict:
         """
         Generate a trading signal with multi-confirmation scoring.
 
@@ -228,30 +233,32 @@ class TechnicalIndicators:
         raw_score += macd_contribution
 
         # ── 4. RSI (weight: moderate) ──
+        # Uses per-pair optimized overbought/oversold thresholds
+        # For M15: bands widened vs H4 since RSI stays in trend longer on lower TFs
         rsi_contribution = 0.0
         if "rsi_14" in df.columns:
             rsi = latest["rsi_14"]
             if pd.notna(rsi):
-                if rsi < 25:
+                if rsi < rsi_os - 5:  # Deeply oversold (5 below threshold)
                     rsi_contribution = 2.5
                     reasons.append(f"RSI deeply oversold ({rsi:.1f})")
                     rsi_fired = True
-                elif rsi < 35:
+                elif rsi < rsi_os:
                     rsi_contribution = 1.5
                     reasons.append(f"RSI oversold ({rsi:.1f})")
                     rsi_fired = True
-                elif rsi > 75:
+                elif rsi > rsi_ob + 10:  # Deeply overbought (wider band for M15)
                     rsi_contribution = -2.5
                     reasons.append(f"RSI deeply overbought ({rsi:.1f})")
                     rsi_fired = True
-                elif rsi > 65:
-                    rsi_contribution = -1.5
+                elif rsi > rsi_ob + 5:  # Moderately overbought (wider band)
+                    rsi_contribution = -1.0
                     reasons.append(f"RSI overbought ({rsi:.1f})")
                     rsi_fired = True
-                elif rsi < 45:
+                elif rsi < 40:
                     rsi_contribution = -0.5
                     reasons.append(f"RSI bearish zone ({rsi:.1f})")
-                elif rsi > 55:
+                elif rsi > 60:
                     rsi_contribution = 0.5
                     reasons.append(f"RSI bullish zone ({rsi:.1f})")
         raw_score += rsi_contribution
@@ -282,34 +289,36 @@ class TechnicalIndicators:
             if pd.notna(adx_val):
                 if adx_val > 30:
                     reasons.append(f"Strong trend (ADX {adx_val:.1f})")
-                    # ADX > 30 amplifies the score slightly (trend has momentum)
                     raw_score *= 1.2
-                elif adx_val > 20:
+                elif adx_val > 15:
                     reasons.append(f"Developing trend (ADX {adx_val:.1f})")
                 else:
                     reasons.append(f"Range-bound (ADX {adx_val:.1f})")
-                    # ADX < 20 dampens the score (no trend = less reliable)
-                    raw_score *= 0.8
+                    # Very weak dampener for M15 — we want trades even in ranging markets
+                    raw_score *= 0.95
 
-        # ── Count confirmations (EMA crossover + MACD crossover + RSI extreme + BB touch) ──
+        # ── Count confirmations ──
+        # For M15: count both crossovers AND positioned signals
         confirmations = 0
-        if ema_fired:
+        if ema_fired or ema_contribution != 0:
             confirmations += 1
-        if macd_fired:
+        if macd_fired or macd_contribution != 0:
             confirmations += 1
-        if rsi_fired:
+        if rsi_fired or rsi_contribution != 0:
             confirmations += 1
-        if bb_fired:
+        if bb_fired or bb_contribution != 0:
             confirmations += 1
 
-        # ── Determine signal ──
-        if raw_score >= 2.5 and confirmations >= 2:
+        # ── Determine signal (M15-optimized thresholds) ──
+        # With min_conf=2: need score >= 1.5 with 2+ confirmations
+        # Weak entry: score >= 0.8 with 1+ confirmation
+        if raw_score >= 1.5 and confirmations >= min_conf:
             signal = "BUY"
-        elif raw_score <= -2.5 and confirmations >= 2:
+        elif raw_score <= -1.5 and confirmations >= min_conf:
             signal = "SELL"
-        elif raw_score >= 1.5 and confirmations >= 1:
+        elif raw_score >= 0.8 and confirmations >= max(min_conf - 1, 1):
             signal = "BUY"
-        elif raw_score <= -1.5 and confirmations >= 1:
+        elif raw_score <= -0.8 and confirmations >= max(min_conf - 1, 1):
             signal = "SELL"
         else:
             signal = "HOLD"
