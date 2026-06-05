@@ -10,17 +10,18 @@ the old fixed 2/4 threshold for all pairs.
 # Format: (min_conf, sl_mult, tp_mult, adx_thresh, session_start, session_end, rsi_ob, rsi_os)
 
 OPTIMIZED_PARAMS = {
-    # All pairs switched to M15 for more frequent trading
-    # Session windows widened to cover London + NY + Asian overlap
-    # min_conf kept at 2 for more signals (was 3-4 for some pairs on H4/H1)
+    # All pairs: M15 with London + NY session focus
+    # Research shows M15 scalping works best during London/NY sessions
+    # Asian session filtered out (low volatility, spreads eat profits)
+    # Session: 07:00-21:00 UTC = London open through NY close
 
     "EUR_USD": {
         "min_conf": 2,
         "sl_mult": 1.5,
         "tp_mult": 2.5,
         "adx_thresh": 20,
-        "session_start": 0,
-        "session_end": 24,  # Trade 24h — M15 signals fire anytime
+        "session_start": 7,
+        "session_end": 21,  # London + NY sessions
         "rsi_ob": 70,
         "rsi_os": 30,
         "granularity": "M15",
@@ -31,8 +32,8 @@ OPTIMIZED_PARAMS = {
         "sl_mult": 1.5,
         "tp_mult": 2.5,
         "adx_thresh": 20,
-        "session_start": 0,
-        "session_end": 24,
+        "session_start": 7,
+        "session_end": 21,
         "rsi_ob": 70,
         "rsi_os": 30,
         "granularity": "M15",
@@ -43,8 +44,8 @@ OPTIMIZED_PARAMS = {
         "sl_mult": 1.5,
         "tp_mult": 2.5,
         "adx_thresh": 20,
-        "session_start": 0,
-        "session_end": 24,
+        "session_start": 7,
+        "session_end": 21,
         "rsi_ob": 70,
         "rsi_os": 30,
         "granularity": "M15",
@@ -55,8 +56,8 @@ OPTIMIZED_PARAMS = {
         "sl_mult": 1.5,
         "tp_mult": 2.5,
         "adx_thresh": 20,
-        "session_start": 0,
-        "session_end": 24,
+        "session_start": 7,
+        "session_end": 21,
         "rsi_ob": 70,
         "rsi_os": 30,
         "granularity": "M15",
@@ -67,8 +68,8 @@ OPTIMIZED_PARAMS = {
         "sl_mult": 1.5,
         "tp_mult": 2.5,
         "adx_thresh": 20,
-        "session_start": 0,
-        "session_end": 24,
+        "session_start": 7,
+        "session_end": 21,
         "rsi_ob": 70,
         "rsi_os": 30,
         "granularity": "M15",
@@ -79,8 +80,8 @@ OPTIMIZED_PARAMS = {
         "sl_mult": 1.5,
         "tp_mult": 2.5,
         "adx_thresh": 20,
-        "session_start": 0,
-        "session_end": 24,
+        "session_start": 7,
+        "session_end": 21,
         "rsi_ob": 70,
         "rsi_os": 30,
         "granularity": "M15",
@@ -91,8 +92,8 @@ OPTIMIZED_PARAMS = {
         "sl_mult": 1.5,
         "tp_mult": 2.5,
         "adx_thresh": 20,
-        "session_start": 0,
-        "session_end": 24,
+        "session_start": 7,
+        "session_end": 21,
         "rsi_ob": 70,
         "rsi_os": 30,
         "granularity": "M15",
@@ -103,8 +104,8 @@ OPTIMIZED_PARAMS = {
         "sl_mult": 1.5,
         "tp_mult": 2.5,
         "adx_thresh": 20,
-        "session_start": 0,
-        "session_end": 24,
+        "session_start": 7,
+        "session_end": 21,
         "rsi_ob": 70,
         "rsi_os": 30,
         "granularity": "M15",
@@ -115,8 +116,8 @@ OPTIMIZED_PARAMS = {
         "sl_mult": 1.5,
         "tp_mult": 2.5,
         "adx_thresh": 20,
-        "session_start": 0,
-        "session_end": 24,
+        "session_start": 7,
+        "session_end": 21,
         "rsi_ob": 70,
         "rsi_os": 30,
         "granularity": "M15",
@@ -127,8 +128,8 @@ OPTIMIZED_PARAMS = {
         "sl_mult": 1.5,
         "tp_mult": 2.5,
         "adx_thresh": 20,
-        "session_start": 0,
-        "session_end": 24,
+        "session_start": 7,
+        "session_end": 21,
         "rsi_ob": 70,
         "rsi_os": 30,
         "granularity": "M15",
