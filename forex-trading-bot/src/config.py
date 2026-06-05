@@ -28,12 +28,12 @@ class Config:
 
     # Trading
     DEFAULT_INSTRUMENTS: list = os.getenv(
-        "DEFAULT_INSTRUMENTS", "EUR_USD,GBP_USD,USD_JPY"
+        "DEFAULT_INSTRUMENTS", "EUR_USD,GBP_USD,USD_JPY,AUD_USD,USD_CAD,USD_CHF,USD_SGD,EUR_SGD,SGD_JPY"
     ).split(",")
     DEFAULT_GRANULARITY: str = os.getenv("DEFAULT_GRANULARITY", "H1")
     RISK_PER_TRADE: float = float(os.getenv("RISK_PER_TRADE", "0.01"))
     MAX_DAILY_LOSS: float = float(os.getenv("MAX_DAILY_LOSS", "0.03"))
-    MAX_OPEN_POSITIONS: int = int(os.getenv("MAX_OPEN_POSITIONS", "3"))
+    MAX_OPEN_POSITIONS: int = int(os.getenv("MAX_OPEN_POSITIONS", "5"))
 
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
