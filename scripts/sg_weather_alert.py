@@ -182,10 +182,8 @@ def main():
     if forecast_alerts or rainfall_alerts:
         message = format_alert_message(forecast_alerts, rainfall_alerts)
         print(message)
-        sys.exit(0)  # Exit 0 = alert triggered, message delivered
-    else:
-        # No bad weather — output nothing, cron stays silent
-        sys.exit(1)  # Exit 1 = no alert, nothing delivered
+    # Exit 0 always — no_agent mode: 0+output = deliver, 0+empty = silent.
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
