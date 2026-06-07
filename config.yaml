@@ -379,7 +379,7 @@ model:
   api_key: '***REDACTED***'
   api_mode: chat_completions
   base_url: https://openrouter.ai/api/v1
-  default: deepseek/deepseek-v4-flash
+  default: openrouter/owl-alpha
   provider: openrouter
 model_catalog:
   enabled: true
