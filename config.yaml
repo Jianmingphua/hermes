@@ -59,7 +59,7 @@ agent:
   verbose: false
 approvals:
   cron_mode: deny
-  destructive_slash_confirm: true
+  destructive_slash_confirm: false
   mcp_reload_confirm: true
   mode: manual
   timeout: 60
@@ -191,8 +191,12 @@ code_execution:
   mode: project
   timeout: 300
 command_allowlist:
+- script execution via heredoc
 - find -delete
 - script execution via -e/-c flag
+- recursive delete
+- stop/restart system service
+- delete in root path
 compression:
   abort_on_summary_failure: false
   enabled: true

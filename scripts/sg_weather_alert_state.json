@@ -1,1 +1,1 @@
-{"alert": "clear", "locations": [], "valid_from": null, "valid_to": null, "cleared_at": "2026-05-30"}
+{"alert": "active", "locations": ["Tampines"], "condition": "Showers", "valid_from": "2026-06-05T15:30", "valid_to": "2026-06-05T17:30", "updated_at": "2026-06-05T08:02"}
