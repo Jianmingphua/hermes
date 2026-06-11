@@ -28,12 +28,24 @@ class Config:
 
     # Trading
     DEFAULT_INSTRUMENTS: list = os.getenv(
-        "DEFAULT_INSTRUMENTS", "EUR_USD,GBP_USD,USD_JPY,AUD_USD,USD_CAD,USD_CHF,USD_SGD,EUR_SGD,SGD_JPY"
+        "DEFAULT_INSTRUMENTS", "EUR_USD,GBP_USD,USD_JPY,AUD_USD,USD_CHF,EUR_GBP,XAG_USD"
+    ).split(",")
+    # Crypto instruments (handled by separate crypto strategy)
+    CRYPTO_INSTRUMENTS: list = os.getenv(
+        "CRYPTO_INSTRUMENTS", "BTC_USD,ETH_USD"
+    ).split(",")
+    # Metal instruments (silver — uses main strategy with wider stops)
+    METAL_INSTRUMENTS: list = os.getenv(
+        "METAL_INSTRUMENTS", "XAG_USD"
     ).split(",")
     DEFAULT_GRANULARITY: str = os.getenv("DEFAULT_GRANULARITY", "H1")
     RISK_PER_TRADE: float = float(os.getenv("RISK_PER_TRADE", "0.01"))
     MAX_DAILY_LOSS: float = float(os.getenv("MAX_DAILY_LOSS", "0.03"))
     MAX_OPEN_POSITIONS: int = int(os.getenv("MAX_OPEN_POSITIONS", "5"))
+    # Crypto risk settings (lower due to higher volatility)
+    CRYPTO_RISK_PER_TRADE: float = float(os.getenv("CRYPTO_RISK_PER_TRADE", "0.005"))
+    CRYPTO_MAX_DAILY_LOSS: float = float(os.getenv("CRYPTO_MAX_DAILY_LOSS", "0.02"))
+    CRYPTO_MAX_OPEN_POSITIONS: int = int(os.getenv("CRYPTO_MAX_OPEN_POSITIONS", "2"))
 
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")

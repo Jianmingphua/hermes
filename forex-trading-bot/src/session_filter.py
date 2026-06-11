@@ -25,27 +25,77 @@ PAIR_BEST_SESSIONS = {
     "NZD_USD": ["sydney", "tokyo"],
     "USD_CAD": ["new_york", "london"],
     "USD_CHF": ["london", "new_york"],
-    "EUR_GBP": ["london"],
+    "EUR_GBP": ["london", "new_york"],
     "EUR_JPY": ["london", "tokyo"],
     "GBP_JPY": ["london", "tokyo"],
+    # Metals
+    "XAG_USD": ["london", "new_york"],
+    "XAU_USD": ["london", "new_york"],
 }
 
 # Minimum session overlap (hours) to consider "active"
 MIN_SESSION_HOURS = 2
 
+# Blocked hours (UTC) — low-quality entry windows to avoid
+#   07:00-08:00 UTC -> London open churn (spikes, reversals, thin quotes)
+#   13:00-14:00 UTC -> London close churn (wider spreads, erratic moves)
+#   16:00-18:00 UTC -> Asian session thin liquidity (low volume, choppy)
+#   21:00-22:00 UTC -> NY close illiquidity (wide spreads, erratic moves)
+BLOCKED_HOURS = [
+    (7, 8),    # London open churn
+    (13, 14),  # London close churn
+    (16, 18),  # Asian thin liquidity
+    (21, 22),  # NY close illiquidity
+]
+
 
 class SessionFilter:
     """Determines if current time is suitable for trading a given pair."""
 
+    # ── Time-of-Day Block ─────────────────────────────────────────
+
+    def is_blocked_hour(self, hour: int) -> tuple[bool, str]:
+        """
+        Check if the current UTC hour falls inside a blocked window.
+
+        Blocked windows:
+            07:00-08:00 UTC -> London open churn
+            21:00-22:00 UTC -> NY close illiquidity
+
+        Returns:
+            (is_blocked, reason) — reason is empty if not blocked
+        """
+        for start, end in BLOCKED_HOURS:
+            if start <= hour < end:
+                labels = {
+                    (7, 8): "London open churn",
+                    (13, 14): "London close churn",
+                    (16, 18): "Asian thin liquidity",
+                    (21, 22): "NY close illiquidity",
+                }
+                label = labels.get((start, end), "Blocked window")
+                return True, (
+                    f"⏸ Blocked hour {hour:02d}:00 UTC — {label} "
+                    f"({start:02d}:00-{end:02d}:00 UTC)"
+                )
+        return False, ""
+
     def is_good_time(self, instrument: str) -> tuple[bool, str]:
         """
         Check if current UTC time is a good trading session for this pair.
+        Uses per-pair custom session windows if available, otherwise falls back
+        to default PAIR_BEST_SESSIONS mapping.
 
         Returns:
             (is_good, reason) — reason is empty if good
         """
         now = datetime.now(timezone.utc)
         hour = now.hour
+
+        # Time-of-day block check
+        blocked, block_reason = self.is_blocked_hour(hour)
+        if blocked:
+            return False, block_reason
 
         # Get best sessions for this pair
         best_sessions = PAIR_BEST_SESSIONS.get(instrument, ["london", "new_york"])
@@ -63,6 +113,42 @@ class SessionFilter:
             f"⏸ Outside best session for {instrument} "
             f"(best: {', '.join(best_sessions)}). "
             f"Next: {next_session}"
+        )
+
+    def is_good_time_custom(self, instrument: str, session_start: int, session_end: int) -> tuple[bool, str]:
+        """
+        Check if current UTC time is within a custom session window.
+        Used by per-pair optimized parameters.
+        Also checks blocked hours (London open churn, NY close illiquidity).
+
+        Args:
+            instrument: Pair name (for logging)
+            session_start: Start hour (UTC, inclusive)
+            session_end: End hour (UTC, exclusive)
+
+        Returns:
+            (is_good, reason)
+        """
+        now = datetime.now(timezone.utc)
+        hour = now.hour
+
+        # Time-of-day block check (applies regardless of session window)
+        blocked, block_reason = self.is_blocked_hour(hour)
+        if blocked:
+            return False, block_reason
+
+        if session_start <= session_end:
+            in_session = session_start <= hour < session_end
+        else:  # Wraps midnight (e.g., 22-7)
+            in_session = hour >= session_start or hour < session_end
+
+        if in_session:
+            return True, ""
+
+        return False, (
+            f"⏸ Outside session window for {instrument} "
+            f"({session_start:02d}:00-{session_end:02d}:00 UTC). "
+            f"Current: {hour:02d}:00 UTC"
         )
 
     def _get_active_sessions(self, hour: int) -> list[str]:

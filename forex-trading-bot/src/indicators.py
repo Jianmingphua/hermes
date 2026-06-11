@@ -8,6 +8,8 @@ import logging
 import numpy as np
 import pandas as pd
 
+from src.kalman_filter import KalmanFilterEstimator, HAS_PYKALMAN
+
 logger = logging.getLogger(__name__)
 
 # Try ta-lib, fall back to manual implementations
@@ -142,15 +144,30 @@ class TechnicalIndicators:
         min_conf: int = 2,
         rsi_ob: int = 70,
         rsi_os: int = 30,
+        signal_threshold_strong: float = 2.0,
+        signal_threshold_medium: float = 1.5,
+        signal_threshold_weak: float = 0.8,
+        adx_floor: float = 20,
+        kalman_enabled: bool = False,
+        kalman_velocity_threshold: float = 0.00005,
+        kalman_confidence_threshold: float = 0.3,
     ) -> dict:
         """
         Generate a trading signal with multi-confirmation scoring.
+        Uses per-pair strategy parameters (from STRATEGY_CONFIGS).
 
-        Requires at least 2 of 4 major signal categories to agree:
-          1. EMA (crossover or position)
+        Requires at least min_conf of 4 major signal categories to agree:
+          1. EMA (crossover)
           2. MACD (crossover)
-          3. RSI (extreme or zone)
+          3. RSI (extreme)
           4. Bollinger Band (touch)
+
+        Signal thresholds (per-pair configurable):
+          Strong entry: score >= signal_threshold_strong AND confirmations >= min_conf
+          Medium entry: score >= signal_threshold_medium AND confirmations >= 1
+          Weak entry:   score >= signal_threshold_weak AND confirmations >= 1
+        
+        ADX floor: if ADX < adx_floor, signal is downgraded to HOLD.
 
         Confidence is calibrated by confirmation count and signal strength.
 
@@ -177,12 +194,14 @@ class TechnicalIndicators:
         macd_fired = False
         rsi_fired = False
         bb_fired = False
+        kalman_fired = False
 
         # Weighted score (keeps magnitude for confidence)
         raw_score = 0.0
 
         # ── 1. EMA (weight: strong) ──
         ema_contribution = 0.0
+        ema_position = False
         if "ema_20" in df.columns and "ema_50" in df.columns:
             # Crossover (strongest signal)
             if latest["ema_20"] > latest["ema_50"] and prev["ema_20"] <= prev["ema_50"]:
@@ -196,10 +215,11 @@ class TechnicalIndicators:
             elif latest["ema_20"] > latest["ema_50"]:
                 ema_contribution = 1.0
                 reasons.append("EMA 20 > 50 (bullish)")
-                # Position alone is not a "fire" — needs crossover or BB touch
+                ema_position = True
             elif latest["ema_20"] < latest["ema_50"]:
                 ema_contribution = -1.0
                 reasons.append("EMA 20 < 50 (bearish)")
+                ema_position = True
         raw_score += ema_contribution
 
         # ── 2. 200 EMA Trend Filter (modifies score, not a standalone signal) ──
@@ -213,6 +233,7 @@ class TechnicalIndicators:
 
         # ── 3. MACD (weight: strong) ──
         macd_contribution = 0.0
+        macd_position = False
         if "macd" in df.columns and "macd_signal" in df.columns:
             if (latest["macd"] > latest["macd_signal"]
                     and prev["macd"] <= prev["macd_signal"]):
@@ -227,15 +248,18 @@ class TechnicalIndicators:
             elif latest["macd"] > latest["macd_signal"]:
                 macd_contribution = 0.5
                 reasons.append("MACD above signal")
+                macd_position = True
             else:
                 macd_contribution = -0.5
                 reasons.append("MACD below signal")
+                macd_position = True
         raw_score += macd_contribution
 
         # ── 4. RSI (weight: moderate) ──
         # Uses per-pair optimized overbought/oversold thresholds
         # For M15: bands widened vs H4 since RSI stays in trend longer on lower TFs
         rsi_contribution = 0.0
+        rsi_position = False
         if "rsi_14" in df.columns:
             rsi = latest["rsi_14"]
             if pd.notna(rsi):
@@ -258,13 +282,16 @@ class TechnicalIndicators:
                 elif rsi < 40:
                     rsi_contribution = -0.5
                     reasons.append(f"RSI bearish zone ({rsi:.1f})")
+                    rsi_position = True
                 elif rsi > 60:
                     rsi_contribution = 0.5
                     reasons.append(f"RSI bullish zone ({rsi:.1f})")
+                    rsi_position = True
         raw_score += rsi_contribution
 
         # ── 5. Bollinger Bands (weight: moderate) ──
         bb_contribution = 0.0
+        bb_position = False
         if "bb_lower" in df.columns and "bb_upper" in df.columns:
             if latest["close"] <= latest["bb_lower"]:
                 bb_contribution = 2.0
@@ -277,9 +304,11 @@ class TechnicalIndicators:
             elif latest["close"] <= latest["bb_middle"]:
                 bb_contribution = -0.3
                 reasons.append("Price below BB middle")
+                bb_position = True
             elif latest["close"] > latest["bb_middle"]:
                 bb_contribution = 0.3
                 reasons.append("Price above BB middle")
+                bb_position = True
         raw_score += bb_contribution
 
         # ── 6. ADX (modifier, not a standalone signal) ──
@@ -296,29 +325,76 @@ class TechnicalIndicators:
                     reasons.append(f"Range-bound (ADX {adx_val:.1f})")
                     # Very weak dampener for M15 — we want trades even in ranging markets
                     raw_score *= 0.95
+                # ADX floor: below this, no signal (per-pair configurable)
+                if adx_val < adx_floor:
+                    reasons.append(f"ADX below floor ({adx_val:.1f} < {adx_floor})")
+                    return {
+                        "signal": "HOLD",
+                        "confidence": 0.0,
+                        "score": 0.0,
+                        "confirmations": 0,
+                        "tier": "NONE",
+                        "reasons": reasons,
+                        "indicators": {},
+                    }
+
+        # ── 7. Kalman Filter Trend Estimation ──
+        kalman_score = 0.0
+        kalman_signal = "HOLD"
+        if kalman_enabled and HAS_PYKALMAN:
+            try:
+                kf_estimator = KalmanFilterEstimator(
+                    velocity_threshold=kalman_velocity_threshold,
+                    confidence_threshold=kalman_confidence_threshold,
+                )
+                kf_result = kf_estimator.analyze(df["close"])
+                kalman_score = kf_result.get("kalman_score", 0.0)
+                kalman_signal = kf_result.get("kalman_signal", "HOLD")
+                kalman_fired = kf_result.get("kalman_fired", False)
+
+                if kalman_fired:
+                    raw_score += kalman_score
+                    if kalman_signal == "BUY":
+                        reasons.append(
+                            f"Kalman trend UP (v={kf_result['kalman_velocity']:.6f}, "
+                            f"conf={kf_result['kalman_confidence']:.2f})"
+                        )
+                    elif kalman_signal == "SELL":
+                        reasons.append(
+                            f"Kalman trend DOWN (v={kf_result['kalman_velocity']:.6f}, "
+                            f"conf={kf_result['kalman_confidence']:.2f})"
+                        )
+                else:
+                    reasons.append("Kalman: no clear trend")
+            except Exception as e:
+                logger.warning("Kalman filter error: %s", e)
+                kalman_fired = False
 
         # ── Count confirmations ──
-        # For M15: count both crossovers AND positioned signals
-        confirmations = 0
-        if ema_fired or ema_contribution != 0:
-            confirmations += 1
-        if macd_fired or macd_contribution != 0:
-            confirmations += 1
-        if rsi_fired or rsi_contribution != 0:
-            confirmations += 1
-        if bb_fired or bb_contribution != 0:
-            confirmations += 1
+        # Full confirmations: crossovers, extremes, band touches (weight 1.0 each)
+        # Half confirmations: positioned signals (EMA positioned, MACD positioned,
+        #   RSI in zone, BB near middle) — weight 0.5 each
+        # Kalman: counts as a full confirmation when it fires (trend + confidence)
+        full_confs = sum([ema_fired, macd_fired, rsi_fired, bb_fired, kalman_fired])
+        half_confs = sum([ema_position, macd_position, rsi_position, bb_position]) * 0.5
+        confirmations = full_confs + half_confs
 
         # ── Determine signal (M15-optimized thresholds) ──
-        # With min_conf=2: need score >= 1.5 with 2+ confirmations
-        # Weak entry: score >= 0.8 with 1+ confirmation
-        if raw_score >= 1.5 and confirmations >= min_conf:
+        # With tightened confirmations and min_conf=2:
+        #   Strong entry (≥2.0 score + ≥2 confirmations): 2+ major signals agree
+        #   Medium entry (≥1.5 score + ≥1 confirmation):  1 major + positioned support
+        #   Weak entry  (≥0.8 score + ≥1 confirmation):   marginal, high-risk
+        if raw_score >= signal_threshold_strong and confirmations >= min_conf:
             signal = "BUY"
-        elif raw_score <= -1.5 and confirmations >= min_conf:
+        elif raw_score <= -signal_threshold_strong and confirmations >= min_conf:
             signal = "SELL"
-        elif raw_score >= 0.8 and confirmations >= max(min_conf - 1, 1):
+        elif raw_score >= signal_threshold_medium and confirmations >= 1:
             signal = "BUY"
-        elif raw_score <= -0.8 and confirmations >= max(min_conf - 1, 1):
+        elif raw_score <= -signal_threshold_medium and confirmations >= 1:
+            signal = "SELL"
+        elif raw_score >= signal_threshold_weak and confirmations >= 1:
+            signal = "BUY"
+        elif raw_score <= -signal_threshold_weak and confirmations >= 1:
             signal = "SELL"
         else:
             signal = "HOLD"
@@ -332,11 +408,13 @@ class TechnicalIndicators:
         confidence = min(base_confidence + confirmation_bonus, 1.0)
 
         # ── Quality tier ──
-        if confirmations >= 3 and (ema_fired or macd_fired):
+        # With half-confirmations: 4 fired = 4.0 (HIGH), 2+ fired or 4+ half = MEDIUM,
+        # 1+ fired or 2+ half = LOW
+        if confirmations >= 3:
             tier = "HIGH"
-        elif confirmations >= 2:
+        elif confirmations >= 1.5:
             tier = "MEDIUM"
-        elif confirmations >= 1:
+        elif confirmations >= 0.5:
             tier = "LOW"
         else:
             tier = "NONE"
@@ -358,6 +436,7 @@ class TechnicalIndicators:
                 "macd": macd_fired,
                 "rsi": rsi_fired,
                 "bb": bb_fired,
+                "kalman": kalman_fired,
             },
             "reasons": reasons,
             "indicators": indicators,

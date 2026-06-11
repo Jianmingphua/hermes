@@ -11,7 +11,8 @@ import pandas as pd
 
 from src.oanda_client import OandaClient
 from src.indicators import TechnicalIndicators, HAS_TALIB
-from src.optimized_params import get_params
+from src.optimized_params import get_params, get_strategy
+from src.support_resistance import support_resistance
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +142,7 @@ class SignalGenerator:
         """
         # Use per-pair optimized parameters
         params = get_params(instrument)
+        strategy = get_strategy(instrument)  # Per-pair strategy config
         if granularity is None:
             granularity = params.get("granularity", "M15")
 
@@ -160,6 +162,13 @@ class SignalGenerator:
             min_conf=params["min_conf"],
             rsi_ob=params["rsi_ob"],
             rsi_os=params["rsi_os"],
+            signal_threshold_strong=strategy.get("signal_threshold_strong", 2.0),
+            signal_threshold_medium=strategy.get("signal_threshold_medium", 1.5),
+            signal_threshold_weak=strategy.get("signal_threshold_weak", 0.8),
+            adx_floor=strategy.get("adx_floor", 20),
+            kalman_enabled=strategy.get("kalman_enabled", False),
+            kalman_velocity_threshold=strategy.get("kalman_velocity_threshold", 0.00005),
+            kalman_confidence_threshold=strategy.get("kalman_confidence_threshold", 0.3),
         )
 
         # Get current price
@@ -176,12 +185,93 @@ class SignalGenerator:
         signal["analyzed_at"] = datetime.utcnow().isoformat()
 
         # ── Multi-timeframe H4 trend confirmation ──
-        # DISABLED for M15 trading — too restrictive for lower timeframe entries
-        # The H4 trend filter was designed for H4 entries and blocks too many M15 signals
-        # TODO: Re-enable as optional filter if win rate needs improvement
+        # All pairs use gate mode (h4_must_align=True): HOLD if H4 opposes
+        # Additional: when H4 opposes and confidence is high (≥0.7), cap the score
+        # to prevent strong counter-trend entries
         sig_type = signal.get("signal", "HOLD")
-        signal["h4_trend_aligned"] = None
-        signal["h4_trend_reason"] = ""
+        h4_must_align = strategy.get("h4_must_align", True)
+        if sig_type in ("BUY", "SELL"):
+            aligned, h4_reason = self.check_h4_trend(instrument, sig_type)
+            signal["h4_trend_aligned"] = aligned
+            signal["h4_trend_reason"] = h4_reason
+
+            if not aligned:
+                if h4_must_align:
+                    # Gate mode: block entirely
+                    logger.info(
+                        "🔒 H4 must_align BLOCKED %s %s (counter-trend)",
+                        instrument, sig_type,
+                    )
+                    signal["signal"] = "HOLD"
+                    signal["confidence"] = 0.0
+                    signal["score"] = 0.0
+                    signal["reasons"].append("H4 must_align: BLOCKED")
+                    sig_type = "HOLD"
+                else:
+                    # Modifier mode (fallback): dampen score
+                    h4_opposed_mult = strategy.get("h4_opposed_mult", 0.85)
+                    signal["score"] = round(signal["score"] * h4_opposed_mult, 2)
+                    signal["reasons"].append(f"H4 opposed (×{h4_opposed_mult})")
+                    logger.info(
+                        "⚠️ H4 opposed dampener: %s %s | score=%.2f",
+                        instrument, sig_type, signal["score"],
+                    )
+            else:
+                if h4_must_align:
+                    signal["reasons"].append("H4 must_align: ✅")
+                else:
+                    h4_aligned_mult = strategy.get("h4_aligned_mult", 1.15)
+                    signal["score"] = round(signal["score"] * h4_aligned_mult, 2)
+                    signal["reasons"].append(f"H4 aligned (×{h4_aligned_mult})")
+                logger.info(
+                    "✅ H4 trend aligned: %s %s",
+                    instrument, sig_type,
+                )
+        else:
+            signal["h4_trend_aligned"] = None
+            signal["h4_trend_reason"] = ""
+
+        # ── Confidence cap for H4-opposed high-confidence signals ──
+        # Even if signal passed H4 gate (e.g. fail-open due to missing data),
+        # cap confidence when H4 data was available but opposed
+        if (sig_type in ("BUY", "SELL")
+                and signal.get("h4_trend_aligned") == False
+                and signal.get("confidence", 0) >= 0.7):
+            logger.info(
+                "⚠️ High confidence (%.2f) but H4 opposed — capping score at 1.5",
+                signal["confidence"],
+            )
+            signal["score"] = min(abs(signal["score"]), 1.5) * (1 if signal["score"] > 0 else -1)
+            signal["reasons"].append("H4 opposed: score capped at 1.5")
+
+        # ── Support/Resistance proximity check ────────────────────
+        # Additional non-TA layer: avoid entering into established S/R zones.
+        # Controlled by sr_enabled per-pair strategy flag.
+        if (
+            sig_type in ("BUY", "SELL")
+            and "current_price" in signal
+            and strategy.get("sr_enabled", True)
+        ):
+            mid_price = (
+                signal["current_price"]["bid"]
+                + signal["current_price"]["ask"]
+            ) / 2
+            atr = signal.get("atr_14", None)
+            sr_modifier, sr_reason = support_resistance.get_modifier(
+                instrument=instrument,
+                current_price=mid_price,
+                direction=sig_type,
+                atr=atr,
+            )
+            if sr_modifier != 0:
+                old_score = signal["score"]
+                signal["score"] = round(signal["score"] + sr_modifier, 2)
+                if sr_reason:
+                    signal["reasons"].append(sr_reason)
+                logger.info(
+                    "📊 S/R modifier: %s %s | score=%.2f → %.2f",
+                    instrument, sig_type, old_score, signal["score"],
+                )
 
         # Calculate suggested stop loss / take profit based on ATR with per-pair multipliers
         if "atr_14" in df.columns:

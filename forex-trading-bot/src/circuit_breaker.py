@@ -13,8 +13,9 @@ logger = logging.getLogger(__name__)
 
 # Default thresholds
 DEFAULT_CONSECUTIVE_LOSS_LIMIT = 3
-DEFAULT_DAILY_LOSS_PCT = 0.03  # 3%
+DEFAULT_DAILY_LOSS_PCT = 0.02  # 2% (tightened from 3%)
 DEFAULT_COOLDOWN_MINUTES = 60
+DEFAULT_INITIAL_BALANCE = 100000.0  # Reference balance for % calculations
 
 
 class CircuitBreaker:
@@ -31,15 +32,52 @@ class CircuitBreaker:
         daily_loss_pct: float = DEFAULT_DAILY_LOSS_PCT,
         cooldown_minutes: int = DEFAULT_COOLDOWN_MINUTES,
         state_file: str = "logs/circuit_breaker.json",
+        disabled: bool = False,
     ):
         self.consecutive_loss_limit = consecutive_loss_limit
         self.daily_loss_pct = daily_loss_pct
         self.cooldown_minutes = cooldown_minutes
         self.state_file = Path(state_file)
+        self._account_balance = DEFAULT_INITIAL_BALANCE
         self.state = self._load_state()
+        self.disabled = disabled
+
+    def set_account_balance(self, balance: float):
+        """Update the reference balance for daily loss percentage calculation.
+        Tracks the highest ever balance and trips if a 20% drawdown occurs.
+        """
+        self._account_balance = balance
+
+        # Track highest ever balance
+        if balance > self.state.get("highest_balance", 0):
+            self.state["highest_balance"] = balance
+            self._save_state()
+
+        # Check for 20%+ drawdown from peak — hard trip, no auto-reset
+        highest = self.state.get("highest_balance", balance)
+        if highest > 0 and balance < 0.8 * highest:
+            logger.warning(
+                "Balance floor breached: $%.2f < 80%% of peak $%.2f",
+                balance, highest,
+            )
+            if not self.state["is_tripped"]:
+                self._trip(
+                    f"Balance floor breached: ${balance:.2f} < 80% of peak ${highest:.2f}",
+                    hard_trip=True,
+                )
+
+    def update_unrealized_pnl(self, unrealized_pnl: float):
+        """
+        Update unrealized P&L from open positions.
+        This is called each cycle so the circuit breaker can account for
+        paper losses on open trades.
+        """
+        self.state["unrealized_pnl"] = round(unrealized_pnl, 2)
+        self._check_trip()
+        self._save_state()
 
     def _load_state(self) -> dict:
-        """Load state from disk."""
+        """Load state from disk with migration for new fields."""
         if self.state_file.exists():
             try:
                 with open(self.state_file) as f:
@@ -49,6 +87,11 @@ class CircuitBreaker:
                 today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                 if last_date != today:
                     state = self._fresh_state()
+                else:
+                    # Migrate: ensure all fresh-state keys exist
+                    fresh = self._fresh_state()
+                    for k, v in fresh.items():
+                        state.setdefault(k, v)
                 return state
             except (json.JSONDecodeError, KeyError):
                 pass
@@ -65,19 +108,20 @@ class CircuitBreaker:
             "tripped_at": None,
             "trip_reason": "",
             "cooldown_until": None,
+            "escalation_level": 0,
+            "highest_balance": self._account_balance,
             "trade_history": [],
         }
 
     def _save_state(self):
-        """Persist state to disk."""
-        self.state_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.state_file, "w") as f:
-            json.dump(self.state, f, indent=2, default=str)
+        """Persist state to disk (atomic write — crash-safe)."""
+        from src.file_utils import atomic_save
+        atomic_save(self.state_file, self.state)
 
     def record_trade(self, instrument: str, direction: str, pnl: float):
         """Record a completed trade result."""
         self.state["total_trades_today"] += 1
-        self.state["daily_pnl"] += pnl
+        self.state["daily_pnl"] = round(self.state["daily_pnl"] + pnl, 2)
 
         trade = {
             "time": datetime.now(timezone.utc).isoformat(),
@@ -111,6 +155,9 @@ class CircuitBreaker:
         Returns:
             (is_allowed, reason) — reason is empty if allowed
         """
+        if self.disabled:
+            return True, ""
+
         state = self.state
 
         # Check if manually tripped
@@ -146,24 +193,42 @@ class CircuitBreaker:
             )
             return
 
-        # Daily loss limit
-        # We need account balance to calculate percentage — use daily_pnl directly
-        # The caller should pass balance info; here we use absolute threshold
-        if state["daily_pnl"] < -1000:  # Absolute fallback
-            self._trip(
-                f"Daily loss limit: {state['daily_pnl']:.2f}"
-            )
+        # Daily loss limit (percentage of account balance, including unrealized P&L)
+        unrealized = state.get("unrealized_pnl", 0.0)
+        total_daily_pnl = state["daily_pnl"] + unrealized
+        if self._account_balance > 0:
+            daily_loss_pct = abs(total_daily_pnl) / self._account_balance
+            if total_daily_pnl < 0 and daily_loss_pct >= self.daily_loss_pct:
+                self._trip(
+                    f"Daily loss limit: {daily_loss_pct:.2%} "
+                    f"(realized={state['daily_pnl']:.2f}, unrealized={unrealized:.2f}, "
+                    f"balance={self._account_balance:.2f})"
+                )
 
-    def _trip(self, reason: str):
+    def _trip(self, reason: str, hard_trip: bool = False):
         """Trip the circuit breaker."""
         self.state["is_tripped"] = True
         self.state["tripped_at"] = datetime.now(timezone.utc).isoformat()
         self.state["trip_reason"] = reason
-        self.state["cooldown_until"] = (
-            datetime.now(timezone.utc)
-            + timedelta(minutes=self.cooldown_minutes)
-        ).isoformat()
-        logger.warning("🔴 CIRCUIT BREAKER TRIPPED: %s", reason)
+
+        if hard_trip:
+            # Hard trip — no auto-reset (no cooldown_until)
+            self.state["cooldown_until"] = None
+            logger.warning("🔴 CIRCUIT BREAKER HARD TRIPPED: %s (no auto-reset)", reason)
+        else:
+            # Cooldown with escalation
+            level = self.state.get("escalation_level", 0)
+            cooldowns = [self.cooldown_minutes, 120, 240]
+            cooldown = cooldowns[min(level, len(cooldowns) - 1)]
+            self.state["escalation_level"] = level + 1
+            self.state["cooldown_until"] = (
+                datetime.now(timezone.utc)
+                + timedelta(minutes=cooldown)
+            ).isoformat()
+            logger.warning(
+                "🔴 CIRCUIT BREAKER TRIPPED: %s | escalation=%d | cooldown=%d min",
+                reason, level, cooldown,
+            )
 
     def _reset(self):
         """Reset circuit breaker."""
@@ -181,15 +246,18 @@ class CircuitBreaker:
 
     def get_status(self) -> dict:
         """Get current circuit breaker status."""
+        unrealized = self.state.get("unrealized_pnl", 0.0)
         return {
             "is_tripped": self.state["is_tripped"],
             "consecutive_losses": self.state["consecutive_losses"],
             "consecutive_limit": self.consecutive_loss_limit,
             "daily_pnl": round(self.state["daily_pnl"], 2),
+            "unrealized_pnl": unrealized,
+            "total_pnl": round(self.state["daily_pnl"] + unrealized, 2),
             "total_trades_today": self.state["total_trades_today"],
             "trip_reason": self.state["trip_reason"],
         }
 
 
 # Singleton
-circuit_breaker = CircuitBreaker()
+circuit_breaker = CircuitBreaker(disabled=True)

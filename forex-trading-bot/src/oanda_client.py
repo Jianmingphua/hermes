@@ -188,25 +188,42 @@ class OandaClient:
         units: int,
         stop_loss: Optional[float] = None,
         take_profit: Optional[float] = None,
+        slippage_pips: float = 2.0,
     ) -> dict:
         """
-        Place a market order.
+        Place a market order with IOC timeInForce.
+
+        Reads the actual fill price from the response and logs a warning
+        if slippage exceeds 0.5 pips.
 
         Args:
             instrument: e.g. "EUR_USD"
             units: positive = buy, negative = sell (in units of base currency)
             stop_loss: optional stop loss price
             take_profit: optional take profit price
+            slippage_pips: maximum allowed slippage in pips (default: 2.0)
 
         Returns:
-            Order response dict
+            Order response dict with actual fill price added as "fill_price"
         """
+        # Get current market price to set price bound and track slippage
+        current_price = self.get_current_price(instrument)
+        instrument_ask = current_price["ask"]
+        instrument_bid = current_price["bid"]
+
+        pip_value = 0.01 if "JPY" in instrument else 0.0001
+
+        if units > 0:  # BUY — use ask price
+            entry_price = instrument_ask
+        else:  # SELL — use bid price
+            entry_price = instrument_bid
+
         order_body = {
             "order": {
                 "type": "MARKET",
                 "instrument": instrument,
                 "units": str(units),
-                "timeInForce": "FOK",
+                "timeInForce": "IOC",
             }
         }
 
@@ -224,16 +241,35 @@ class OandaClient:
         r = orders.OrderCreate(accountID=self.account_id, data=order_body)
         response = self.client.request(r)
 
-        # Parse fill or create confirmation
+        # Parse fill price from response
+        fill_price = None
         if "orderFillTransaction" in response:
             fill = response["orderFillTransaction"]
+            fill_price = float(fill.get("price", 0))
+            fill_units = fill.get("units")
             logger.info(
                 "ORDER FILLED: %s %s units @ %s | P&L=%s",
                 fill.get("instrument"),
-                fill.get("units"),
+                fill_units,
                 fill.get("price"),
                 fill.get("pl"),
             )
+
+            # Log slippage warning if fill price differs significantly
+            actual_slippage = abs(fill_price - entry_price)
+            if actual_slippage > 0.5 * pip_value:
+                slippage_pips_actual = actual_slippage / pip_value
+                logger.warning(
+                    "Significant slippage on %s: requested=%.5f filled=%.5f "
+                    "(%.2f pips)",
+                    instrument,
+                    entry_price,
+                    fill_price,
+                    slippage_pips_actual,
+                )
+
+            # Attach fill price to response for downstream use
+            response["fill_price"] = fill_price
         elif "orderCreateTransaction" in response:
             create = response["orderCreateTransaction"]
             logger.info(
@@ -261,6 +297,123 @@ class OandaClient:
         logger.info("Closed %s position on %s", side, instrument)
         return response
 
+    def partial_close_position(self, instrument: str, side: str,
+                                units: int) -> dict:
+        """
+        Partially close a position by specifying units to close.
+
+        Args:
+            instrument: e.g. "EUR_USD"
+            side: "long" or "short"
+            units: number of units to close (positive integer)
+
+        Returns:
+            OANDA PositionClose response dict
+        """
+        units_str = str(abs(units))
+        if side == "long":
+            data = {"longUnits": units_str}
+        else:
+            data = {"shortUnits": units_str}
+
+        r = positions.PositionClose(
+            accountID=self.account_id,
+            instrument=instrument,
+            data=data,
+        )
+        response = self.client.request(r)
+        logger.info(
+            "Partial close: %s %s %d units", side, instrument, units
+        )
+        return response
+
+    def get_open_trade_ids(self, instrument: str,
+                            side: str = None) -> list[str]:
+        """
+        Get open trade IDs for an instrument (optionally filtered by side).
+
+        Args:
+            instrument: e.g. "EUR_USD"
+            side: "long", "short", or None for both
+
+        Returns:
+            List of trade ID strings
+        """
+        import oandapyV20.endpoints.trades as trades
+
+        params = {"instrument": instrument, "state": "OPEN"}
+        r = trades.TradesList(accountID=self.account_id, params=params)
+        response = self.client.request(r)
+
+        trade_ids = []
+        for t in response.get("trades", []):
+            if side is None:
+                trade_ids.append(t["id"])
+            elif side == "long" and int(t.get("currentUnits", 0)) > 0:
+                trade_ids.append(t["id"])
+            elif side == "short" and int(t.get("currentUnits", 0)) < 0:
+                trade_ids.append(t["id"])
+
+        logger.debug(
+            "Open trades for %s (%s): %s", instrument, side, trade_ids
+        )
+        return trade_ids
+
+    def update_trade_stop_loss(self, trade_id: str,
+                                new_sl: float) -> dict:
+        """
+        Update the stop-loss price on an existing open trade.
+
+        OANDA uses TradeCRCDO (Create/Replace/Cancel/Update) via PUT.
+        We send the new stopLoss value while preserving takeProfit.
+
+        Args:
+            trade_id: the OANDA trade ID to update
+            new_sl: new stop-loss price
+
+        Returns:
+            OANDA response dict
+        """
+        import oandapyV20.endpoints.trades as trades
+
+        # First fetch existing trade to get current TP (preserve it)
+        r_get = trades.TradeDetails(
+            accountID=self.account_id, tradeID=trade_id
+        )
+        existing = self.client.request(r_get)
+        current_tp = existing.get("trade", {}).get("takeProfitOrder", {})
+
+        precision = 3 if "JPY" in str(
+            existing.get("trade", {}).get("instrument", "")
+        ) else 5
+
+        sl_str = f"{new_sl:.{precision}f}"
+
+        data = {
+            "trade": {
+                "stopLoss": {
+                    "price": sl_str,
+                    "timeInForce": "GTC",
+                }
+            }
+        }
+
+        # Preserve existing take profit if set
+        if current_tp and current_tp.get("price"):
+            data["trade"]["takeProfit"] = {
+                "price": current_tp["price"],
+                "timeInForce": "GTC",
+            }
+
+        r = trades.TradeCRCDO(
+            accountID=self.account_id, tradeID=trade_id, data=data
+        )
+        response = self.client.request(r)
+        logger.info(
+            "SL updated on trade %s → %s", trade_id, sl_str
+        )
+        return response
+
     def get_open_positions(self) -> list[dict]:
         """Get all open positions."""
         r = positions.OpenPositions(accountID=self.account_id)
@@ -270,8 +423,8 @@ class OandaClient:
         for p in response.get("positions", []):
             pos = {
                 "instrument": p["instrument"],
-                "long_units": int(p["long"]["units"]),
-                "short_units": int(p["short"]["units"]),
+                "long_units": abs(int(p["long"]["units"])),
+                "short_units": abs(int(p["short"]["units"])),
                 "unrealized_pnl": float(p.get("unrealizedPL", 0)),
             }
             pos_list.append(pos)
