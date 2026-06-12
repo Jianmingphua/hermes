@@ -191,12 +191,17 @@ code_execution:
   mode: project
   timeout: 300
 command_allowlist:
+- stop/restart system service
 - script execution via heredoc
 - find -delete
-- script execution via -e/-c flag
+- sudo with privilege flag (stdin/askpass/shell/list)
+- overwrite system config
 - recursive delete
-- stop/restart system service
+- shell command via -c/-lc flag
+- docker restart/stop/kill (container lifecycle)
 - delete in root path
+- script execution via -e/-c flag
+- SQL DROP
 compression:
   abort_on_summary_failure: false
   enabled: true
