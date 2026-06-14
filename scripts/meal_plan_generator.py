@@ -289,7 +289,9 @@ def main():
 
     # Fallback to defaults if no sheet recipes
     if not recipes:
-        # Use the default recipes from setup script format
+        # Import default recipes from setup script
+        sys.path.insert(0, str(Path(__file__).parent))
+        from setup_meal_planner import DEFAULT_RECIPES
         for r in DEFAULT_RECIPES:
             recipes.append({
                 "name": r[0], "type": r[1], "aisle": r[2],
