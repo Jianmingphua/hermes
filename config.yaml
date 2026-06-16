@@ -197,6 +197,7 @@ command_allowlist:
 - sudo with privilege flag (stdin/askpass/shell/list)
 - overwrite system config
 - recursive delete
+- overwrite system file via tee
 - shell command via -c/-lc flag
 - docker restart/stop/kill (container lifecycle)
 - delete in root path
