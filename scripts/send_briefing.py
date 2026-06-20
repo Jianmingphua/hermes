@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
-import subprocess
-import json
+import urllib.request
+import urllib.parse
+import yaml
 
-token = open('/opt/hermes/.hermes/.telegram_bot_token').read().strip()
+with open('/opt/hermes/config.yaml', 'r') as f:
+    config = yaml.safe_load(f)
 
-msg = (
-    "\U0001f305 Good morning! Here's your daily briefing \u2014 Sunday, 14 June 2026.\n\n"
-    "\U0001f4b0 CFO: Account: $96,712 | Unrealized P&L: -70 | Open positions: 2 | "
-    "Circuit breaker: inactive | 2 anomaly alerts today\n\n"
-    "\U0001f4c5 COO: Thailand trip reminders active | Forex bot: running | Today is Sunday\n\n"
-    "\U0001f5a5\ufe0f CTO: Disk: 71% used | RAM: 23Gi total | Data freshness: 2/3 sources recent\n\n"
-    "\U0001f324\ufe0f Weatherman: Tampines: Showers, 30.6\u00b0C \u2014 bring umbrella\n\n"
-    "Have a great day! \U0001f680"
+bot_token = config.get('telegram', {}).get('bot_token', '')
+chat_id = config.get('telegram', {}).get('chat_id', '')
+
+message = (
+    "Good morning! Here's your daily briefing - Saturday, 20 June 2026.\n\n"
+    "CFO: Account: $96,606 | No open positions | Circuit breaker tripped (L31) | 2 anomaly alerts today\n\n"
+    "COO: Thailand trip reminders active | Forex bot: running | Today is Saturday\n\n"
+    "CTO: Disk: 71% used | RAM: 23Gi total | Data freshness: 2/3 sources recent\n\n"
+    "Weatherman: Tampines: Partly Cloudy (Day), 30.4C - good day for outdoor activities\n\n"
+    "Have a great day!"
 )
 
-payload = json.dumps({'chat_id': 137588943, 'text': msg})
-result = subprocess.run(
-    ['curl', '-s', '-X', 'POST',
-     f'https://api.telegram.org/bot{token}/sendMessage',
-     '-H', 'Content-Type: application/json', '-d', payload],
-    capture_output=True, text=True
-)
-print(result.stdout)
-if result.stderr:
-    print("STDERR:", result.stderr)
+url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
+data = urllib.parse.urlencode({'chat_id': chat_id, 'text': message}).encode()
+req = urllib.request.Request(url, data=data)
+resp = urllib.request.urlopen(req)
+print(resp.read().decode())
