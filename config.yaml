@@ -1,7 +1,8 @@
-_config_version: 26
+_config_version: 30
 agent:
   api_max_retries: 3
   clarify_timeout: 600
+  coding_context: auto
   disabled_toolsets: []
   environment_hint: ''
   environment_probe: true
@@ -11,6 +12,7 @@ agent:
   gateway_timeout_warning: 900
   image_input_mode: auto
   max_turns: 90
+  parallel_tool_call_guidance: true
   personalities:
     catgirl: "You are Neko-chan, an anime catgirl AI assistant, nya~! Add 'nya' and\
       \ cat-like expressions to your speech. Use kaomoji like (=^\uFF65\u03C9\uFF65\
@@ -71,6 +73,13 @@ auxiliary:
     model: ''
     provider: auto
     timeout: 30
+  background_review:
+    api_key: '***REDACTED***'
+    base_url: ''
+    extra_body: {}
+    model: ''
+    provider: auto
+    timeout: 120
   compression:
     api_key: '***REDACTED***'
     base_url: ''
@@ -99,6 +108,13 @@ auxiliary:
     model: ''
     provider: auto
     timeout: 30
+  monitor:
+    api_key: '***REDACTED***'
+    base_url: ''
+    extra_body: {}
+    model: ''
+    provider: auto
+    timeout: 60
   profile_describer:
     api_key: '***REDACTED***'
     base_url: ''
@@ -124,6 +140,7 @@ auxiliary:
     api_key: '***REDACTED***'
     base_url: ''
     extra_body: {}
+    language: ''
     model: ''
     provider: auto
     timeout: 30
@@ -134,6 +151,13 @@ auxiliary:
     model: ''
     provider: auto
     timeout: 120
+  tts_audio_tags:
+    api_key: '***REDACTED***'
+    base_url: ''
+    extra_body: {}
+    model: ''
+    provider: auto
+    timeout: 30
   vision:
     api_key: '***REDACTED***'
     base_url: ''
@@ -191,37 +215,50 @@ code_execution:
   mode: project
   timeout: 300
 command_allowlist:
-- stop/restart system service
-- script execution via heredoc
-- find -delete
-- sudo with privilege flag (stdin/askpass/shell/list)
-- overwrite system config
-- recursive delete
-- overwrite system file via tee
 - shell command via -c/-lc flag
+- overwrite system config
 - docker restart/stop/kill (container lifecycle)
+- execute_code
+- sudo with privilege flag (stdin/askpass/shell/list)
+- find -delete
+- script execution via heredoc
+- stop/restart system service
 - delete in root path
 - script execution via -e/-c flag
+- overwrite system file via tee
+- recursive delete
 - SQL DROP
 compression:
   abort_on_summary_failure: false
+  codex_gpt55_autoraise: true
   enabled: true
   hygiene_hard_message_limit: 400
+  in_place: false
   protect_first_n: 3
   protect_last_n: 20
   target_ratio: 0.2
   threshold: 0.5
+computer_use:
+  cua_telemetry: false
 context:
   engine: compressor
+context_file_max_chars: null
 credential_pool_strategies: '***REDACTED***'
 cron:
+  chronos:
+    callback_url: ''
+    expected_audience: ''
+    nas_jwks_url: ''
+    portal_url: https://portal.nousresearch.com
   max_parallel_jobs: null
+  provider: ''
   wrap_response: true
 curator:
   archive_after_days: 90
   backup:
     enabled: true
     keep: 5
+  consolidate: false
   enabled: true
   interval_hours: 168
   min_idle_hours: 2
@@ -234,6 +271,12 @@ custom_providers:
   model: gpt-5-nano
   name: Api.openai.com
 dashboard:
+  basic_auth:
+    password: '***REDACTED***'
+    password_hash: '***REDACTED***'
+    secret: '***REDACTED***'
+    session_ttl_seconds: 0
+    username: ''
   oauth:
     client_id: ''
     portal_url: ''
@@ -246,6 +289,7 @@ delegation:
   base_url: ''
   child_timeout_seconds: 600
   inherit_mcp_toolsets: true
+  max_async_children: 3
   max_concurrent_children: 3
   max_iterations: 50
   max_spawn_depth: 1
@@ -268,13 +312,29 @@ discord:
   require_mention: true
   server_actions: ''
   thread_require_mention: false
+  voice_fx:
+    ack_enabled: true
+    ack_phrases:
+    - Let me look into that.
+    - One moment.
+    - Checking on that now.
+    - Give me a sec.
+    - On it.
+    ambient_enabled: true
+    ambient_gain: 0.18
+    ambient_path: ''
+    duck_gain: 0.06
+    enabled: false
+    speech_gain: 1.0
 display:
   background_process_notifications: all
   bell_on_complete: false
   busy_input_mode: interrupt
   cleanup_progress: false
+  cli_refresh_interval: 1.0
   compact: false
   copy_shortcut: auto
+  credits_notices: true
   ephemeral_system_ttl: 0
   file_mutation_verifier: true
   final_response_markdown: strip
@@ -282,15 +342,25 @@ display:
   interface: cli
   interim_assistant_messages: true
   language: en
+  memory_notifications: 'on'
   mouse_tracking: 'off'
+  persist_prompts: true
   persistent_output: true
   persistent_output_max_lines: 200
   personality: kawaii
+  pet:
+    enabled: false
+    render_mode: auto
+    scale: 0.33
+    slug: ''
+    unicode_cols: 0
   platforms:
     discord:
       streaming: false
     telegram:
       streaming: true
+  reasoning_full: false
+  reasoning_style: code
   resume_display: full
   resume_exchanges: 10
   resume_max_assistant_chars: 200
@@ -311,6 +381,7 @@ display:
   tool_preview_length: 0
   tool_progress: all
   tool_progress_command: false
+  tool_progress_grouping: accumulate
   tool_progress_overrides: {}
   tui_agents_nudge: true
   tui_auto_resume_recent: false
@@ -322,7 +393,12 @@ display:
 fallback_providers: []
 file_read_max_chars: 100000
 gateway:
+  api_server:
+    max_concurrent_runs: 10
+  max_inbound_media_bytes: 134217728
   media_delivery_allow_dirs: []
+  message_timestamps:
+    enabled: false
   strict: false
   trust_recent_files: true
   trust_recent_files_seconds: 600
@@ -373,6 +449,8 @@ mattermost:
   channel_prompts: {}
   free_response_channels: ''
   require_mention: true
+max_concurrent_sessions: null
+mcp_discovery_timeout: 1.5
 memory:
   flush_min_turns: 6
   memory_char_limit: 5000
@@ -381,6 +459,7 @@ memory:
   provider: holographic
   user_char_limit: 1375
   user_profile_enabled: true
+  write_approval: false
 model:
   api_key: '***REDACTED***'
   api_mode: chat_completions
@@ -395,7 +474,9 @@ model_catalog:
 network:
   force_ipv4: false
 onboarding:
+  profile_build: ask
   seen:
+    busy_input_prompt: true
     tool_progress_prompt: true
 openrouter:
   min_coding_score: 0.65
@@ -405,6 +486,7 @@ paste_collapse_char_threshold: 2000
 paste_collapse_threshold: 5
 paste_collapse_threshold_fallback: 5
 personalities: {}
+platform_hints: {}
 platform_toolsets:
   cli:
   - browser
@@ -483,6 +565,7 @@ skills:
   inline_shell: false
   inline_shell_timeout: 10
   template_vars: true
+  write_approval: false
 slack:
   allowed_channels: ''
   channel_prompts: {}
@@ -514,6 +597,8 @@ stt:
 telegram:
   allowed_chats: ''
   channel_prompts: {}
+  extra:
+    rich_messages: false
   reactions: false
   unauthorized_dm_behavior: pair
 terminal:
@@ -524,6 +609,7 @@ terminal:
   container_memory: 5120
   container_persistent: true
   cwd: .
+  daemon_term_grace_seconds: 2.0
   daytona_image: nikolaik/python-nodejs:python3.11-nodejs20
   docker_env: {}
   docker_extra_args: []
@@ -533,6 +619,7 @@ terminal:
   docker_run_as_host_user: false
   docker_volumes: []
   env_passthrough: []
+  home_mode: auto
   lifetime_seconds: 300
   modal_image: nikolaik/python-nodejs:python3.11-nodejs20
   modal_mode: auto
@@ -571,6 +658,11 @@ tts:
   elevenlabs:
     model_id: eleven_multilingual_v2
     voice_id: pNInz6obpgDQGcFmaJgB
+  gemini:
+    audio_tags: false
+    model: gemini-2.5-flash-preview-tts
+    persona_prompt_file: ''
+    voice: Kore
   mistral:
     model: voxtral-mini-tts-2603
     voice_id: c69964a6-ab8b-4f8a-9465-ec0925096ec8
@@ -592,6 +684,7 @@ tts:
     voice_id: eve
 updates:
   backup_keep: 5
+  non_interactive_local_changes: stash
   pre_update_backup: false
 voice:
   auto_tts: false
