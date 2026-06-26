@@ -215,19 +215,20 @@ code_execution:
   mode: project
   timeout: 300
 command_allowlist:
-- shell command via -c/-lc flag
-- overwrite system config
 - docker restart/stop/kill (container lifecycle)
-- execute_code
-- sudo with privilege flag (stdin/askpass/shell/list)
-- find -delete
-- script execution via heredoc
-- stop/restart system service
-- delete in root path
-- script execution via -e/-c flag
-- overwrite system file via tee
+- shell command via -c/-lc flag
 - recursive delete
+- delete in root path
+- sudo with privilege flag (stdin/askpass/shell/list)
+- script execution via heredoc
+- script execution via -e/-c flag
+- stop/restart system service
+- overwrite system config
+- overwrite system file via redirection
+- execute_code
 - SQL DROP
+- find -delete
+- overwrite system file via tee
 compression:
   abort_on_summary_failure: false
   codex_gpt55_autoraise: true
