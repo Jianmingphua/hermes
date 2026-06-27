@@ -174,18 +174,18 @@ def format_odds_line(odds_data, home, away):
         dp = implied_prob(best["draw"])
         ap = implied_prob(best["away"])
         lines.append(
-            f"  ┌ **1X2**\n"
-            f"  │ {fmt_team(home)} **{best['home']:.2f}**  ({hp:.0f}%)\n"
-            f"  │ Draw       **{best['draw']:.2f}**  ({dp:.0f}%)\n"
-            f"  └ {fmt_team(away)} **{best['away']:.2f}**  ({ap:.0f}%)"
+            f"  ┌ 1X2\n"
+            f"  │ {fmt_team(home)} {best['home']:.2f}  ({hp:.0f}%)\n"
+            f"  │ Draw       {best['draw']:.2f}  ({dp:.0f}%)\n"
+            f"  └ {fmt_team(away)} {best['away']:.2f}  ({ap:.0f}%)"
         )
     if bo and bu:
         op = implied_prob(bo)
         up = implied_prob(bu)
         lines.append(
-            f"  ┌ **O/U 2.5**\n"
-            f"  │ Over  **{bo:.2f}**  ({op:.0f}%)\n"
-            f"  └ Under **{bu:.2f}**  ({up:.0f}%)"
+            f"  ┌ O/U 2.5\n"
+            f"  │ Over  {bo:.2f}  ({op:.0f}%)\n"
+            f"  └ Under {bu:.2f}  ({up:.0f}%)"
         )
     lines.append(f"  📈 {len(bms)} bookmakers")
     return "\n".join(lines)
@@ -249,7 +249,7 @@ def main():
     output = ""
 
     if today_games:
-        output = f"⚽ **World Cup 2026 — Today's Matches**\n📅 {now.strftime('%A, %B %d, %Y')}\n\n"
+        output = f"⚽ World Cup 2026 — Today's Matches\n📅 {now.strftime('%A, %B %d, %Y')}\n\n"
         for g in today_games:
             home = g.get("home_team_name_en") or team_cache.get(g.get("home_team_id", "?"), "?")
             away = g.get("away_team_name_en") or team_cache.get(g.get("away_team_id", "?"), "?")
@@ -289,7 +289,7 @@ def main():
         if today_games:
             output += f"\n\n"
         else:
-            output = f"⚽ **World Cup 2026 — Next Matches**\n📅 {now.strftime('%A, %B %d, %Y')}\n\n"
+            output = f"⚽ World Cup 2026 — Next Matches\n📅 {now.strftime('%A, %B %d, %Y')}\n\n"
 
         for g in upcoming_to_show:
             home = g.get("home_team_name_en") or team_cache.get(g.get("home_team_id", "?"), "?")
@@ -307,17 +307,17 @@ def main():
             output += "\n\n"
 
     if not today_games and not upcoming_to_show:
-        output = f"⚽ **World Cup 2026**\n📅 {now.strftime('%A, %B %d, %Y')}\n\nNo matches today. 🏟️"
+        output = f"⚽ World Cup 2026\n📅 {now.strftime('%A, %B %d, %Y')}\n\nNo matches today. 🏟️"
 
     # Group standings
     groups_data = api_get(WC_API, "/get/groups")
     if groups_data:
-        output += "\n\n📊 **Group Standings**\n"
+        output += "\n\n📊 Group Standings\n"
         groups = groups_data.get("groups", [])
         for g in sorted(groups, key=lambda x: x.get("name", "")):
             name = g.get("name", "?")
             teams = g.get("teams", [])
-            output += f"\n**Group {name}**\n"
+            output += f"\nGroup {name}\n"
             sorted_teams = sorted(teams, key=lambda t: (-int(t.get("pts", 0) or 0), -int(t.get("gd", 0) or 0)))
             # Table header
             output += f"  {'Team':<22} {'P':>2} {'W':>2} {'D':>2} {'L':>2} {'GF':>3} {'GA':>3} {'GD':>4} {'Pts':>3}\n"

@@ -134,8 +134,8 @@ def main():
         if prev_status in ("notstarted", None) and time_elapsed not in ("notstarted", "Finished", "finished"):
             if prev_status == "notstarted":
                 messages.append(
-                    f"🔔 <b>KICK-OFF</b>\n\n"
-                    f"<b>{home_team}</b> vs <b>{away_team}</b>\n"
+                    f"🔔 KICK-OFF\n\n"
+                    f"{home_team} vs {away_team}\n"
                     f"🏟️ {stadium} | Group {group}\n"
                     f"🕐 {match_date}"
                 )
@@ -143,8 +143,8 @@ def main():
         # Full-time notification
         if prev_status not in ("Finished", "finished") and time_elapsed in ("Finished", "finished"):
             messages.append(
-                f"🏁 <b>FULL-TIME</b>\n\n"
-                f"<b>{home_team}</b> {home_score} - {away_score} <b>{away_team}</b>\n"
+                f"🏁 FULL-TIME\n\n"
+                f"{home_team} {home_score} - {away_score} {away_team}\n"
                 f"🏟️ {stadium} | Group {group}"
             )
 
@@ -160,8 +160,8 @@ def main():
                 scorer = home_scorers[i]
                 minute = extract_minute(scorer)
                 messages.append(
-                    f"⚽ <b>GOAL!</b>\n\n"
-                    f"<b>{home_team}</b> {home_score} - {away_score} <b>{away_team}</b>\n\n"
+                    f"⚽ GOAL!\n\n"
+                    f"{home_team} {home_score} - {away_score} {away_team}\n\n"
                     f"🏟️ {stadium} | Group {group}\n"
                     f"🥅 {home_team}: {scorer} ({minute})"
                 )
@@ -172,8 +172,8 @@ def main():
                 scorer = away_scorers[i]
                 minute = extract_minute(scorer)
                 messages.append(
-                    f"⚽ <b>GOAL!</b>\n\n"
-                    f"<b>{home_team}</b> {home_score} - {away_score} <b>{away_team}</b>\n\n"
+                    f"⚽ GOAL!\n\n"
+                    f"{home_team} {home_score} - {away_score} {away_team}\n\n"
                     f"🏟️ {stadium} | Group {group}\n"
                     f"🥅 {away_team}: {scorer} ({minute})"
                 )

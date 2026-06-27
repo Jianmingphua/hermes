@@ -159,7 +159,7 @@ def format_match_odds(match):
     sgt_time = time_to_sgt(start_time)
     bookmakers = match.get("bookmakers", [])
 
-    output = f"⚡ <b>{home}</b> vs <b>{away}</b> — {sgt_time} SGT\n"
+    output = f"⚡ {home} vs {away} — {sgt_time} SGT\n"
 
     if not bookmakers:
         return output + "  (no odds available)\n"
@@ -171,10 +171,10 @@ def format_match_odds(match):
     if bh and bd and ba:
         hp, dp, ap = implied_prob(bh), implied_prob(bd), implied_prob(ba)
         lines.append(
-            f"  📊 <b>1X2</b>: "
-            f"{home} <b>{bh:.2f}</b> ({hp:.0f}%) | "
-            f"Draw <b>{bd:.2f}</b> ({dp:.0f}%) | "
-            f"{away} <b>{ba:.2f}</b> ({ap:.0f}%)"
+            f"  📊 1X2: "
+            f"{home} {bh:.2f} ({hp:.0f}%) | "
+            f"Draw {bd:.2f} ({dp:.0f}%) | "
+            f"{away} {ba:.2f} ({ap:.0f}%)"
         )
 
     # O/U 2.5
@@ -182,9 +182,9 @@ def format_match_odds(match):
     if bo and bu:
         op, up = implied_prob(bo), implied_prob(bu)
         lines.append(
-            f"  📊 <b>O/U 2.5</b>: "
-            f"Over <b>{bo:.2f}</b> ({op:.0f}%) | "
-            f"Under <b>{bu:.2f}</b> ({up:.0f}%)"
+            f"  📊 O/U 2.5: "
+            f"Over {bo:.2f} ({op:.0f}%) | "
+            f"Under {bu:.2f} ({up:.0f}%)"
         )
 
     # Handicap
@@ -196,9 +196,9 @@ def format_match_odds(match):
                     h = outcomes[0]
                     a = outcomes[1]
                     lines.append(
-                        f"  📊 <b>Handicap</b>: "
-                        f"{h.get('name','?')} {h.get('point'):+} @ <b>{h.get('price',0):.2f}</b> | "
-                        f"{a.get('name','?')} {a.get('point'):+} @ <b>{a.get('price',0):.2f}</b>"
+                        f"  📊 Handicap: "
+                        f"{h.get('name','?')} {h.get('point'):+} @ {h.get('price',0):.2f} | "
+                        f"{a.get('name','?')} {a.get('point'):+} @ {a.get('price',0):.2f}"
                     )
                     break
         else:
