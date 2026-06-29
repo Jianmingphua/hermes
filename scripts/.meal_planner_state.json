@@ -1,4 +1,23 @@
 {
   "sheet_id": "15UoZDeMEV0jwdruxH4ETgiRdN89mRRCR0hxcFJG69zo",
-  "created_at": "2026-06-12T10:14:12.965308+08:00"
+  "created_at": "2026-06-12T10:14:12.965308+08:00",
+  "history": {
+    "recent_meals": [
+      "Roti Prata",
+      "Ramen (Instant Upgrade)",
+      "Hokkien Mee",
+      "Satay",
+      "Char Kway Teow",
+      "Laksa",
+      "Steamed Fish with Ginger",
+      "Scrambled Eggs on Toast",
+      "Fish Head Curry",
+      "Salmon Rice Bowl",
+      "Bak Kut Teh",
+      "Poke Bowl",
+      "Caesar Salad",
+      "Egg Fried Rice"
+    ],
+    "last_generated": "2026-06-29T04:00:19.760205+08:00"
+  }
 }
