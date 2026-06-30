@@ -27,7 +27,7 @@
 - **Host**: Oracle Cloud Infrastructure (OCI) ARM64 VPS, Ubuntu Linux
 - **Runtime**: Python 3.11 (system), Python 3.12 (pip), `uv` package manager
 - **Container**: Docker (for Firecrawl self-hosting)
-- **Model**: `openrouter/owl-alpha` via OpenRouter
+- **Model**: `nvidia/nemotron-3-super-120b-a12b:free` via OpenRouter
 - **Hermes Home**: `/opt/hermes` (`~/.hermes`)
 - **Config**: `~/.hermes/config.yaml`
 

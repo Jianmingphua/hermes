@@ -136,17 +136,41 @@ def main():
                 messages.append(
                     f"🔔 KICK-OFF\n\n"
                     f"{home_team} vs {away_team}\n"
-                    f"🏟️ {stadium} | Group {group}\n"
+                    f"🏟️ {stadium} | {group}\n"
                     f"🕐 {match_date}"
                 )
 
         # Full-time notification
         if prev_status not in ("Finished", "finished") and time_elapsed in ("Finished", "finished"):
-            messages.append(
-                f"🏁 FULL-TIME\n\n"
-                f"{home_team} {home_score} - {away_score} {away_team}\n"
-                f"🏟️ {stadium} | Group {group}"
-            )
+            # Check for penalty shootout (knockout matches with draw score)
+            home_pen = game.get("home_penalty_score")
+            away_pen = game.get("away_penalty_score")
+            is_knockout = group.startswith(("R", "Q", "S", "F")) and group not in ("Group",)
+
+            if home_pen is not None and away_pen is not None and home_score == away_score:
+                # Match went to penalties after draw (ET didn't break tie)
+                winner = home_team if int(home_pen) > int(away_pen) else away_team
+                messages.append(
+                    f"🏁 FULL-TIME — PENALTIES\n\n"
+                    f"{home_team} {home_score} - {away_score} {away_team}\n"
+                    f"🎯 Penalties: {home_pen}-{away_pen}\n"
+                    f"🏆 {winner} advances\n"
+                    f"🏟️ {stadium} | {group}"
+                )
+            elif home_score == away_score and is_knockout:
+                # Draw in knockout but no penalty data yet (ET may still be in progress)
+                messages.append(
+                    f"🏁 FULL-TIME (after ET)\n\n"
+                    f"{home_team} {home_score} - {away_score} {away_team}\n"
+                    f"🎯 Going to penalties\n"
+                    f"🏟️ {stadium} | {group}"
+                )
+            else:
+                messages.append(
+                    f"🏁 FULL-TIME\n\n"
+                    f"{home_team} {home_score} - {away_score} {away_team}\n"
+                    f"🏟️ {stadium} | {group}"
+                )
 
         # Goal detection — count scorers per team per game
         home_key = f"{game_id}_home_goals"

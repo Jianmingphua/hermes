@@ -147,7 +147,7 @@ def extract_totals_25(bookmakers):
     return best_over, best_under, best_over_bm, best_under_bm
 
 
-def fmt_team(name, width=10):
+def fmt_team(name, width=12):
     """Pad/truncate team name for alignment."""
     return name[:width].ljust(width)
 
@@ -260,26 +260,43 @@ def main():
             sgt_dt, sgt_str = parse_local_date_to_sgt(g.get("local_date", ""))
 
             if status in ("finished", "Finished"):
-                output += f"🏁 {home} {home_score}-{away_score} {away} (FT) | G{group}"
+                # Check for penalty shootout in knockout matches
+                home_pen = g.get("home_penalty_score")
+                away_pen = g.get("away_penalty_score")
+                is_knockout = group.startswith(("R", "Q", "S", "F")) and group not in ("Group",)
+                if home_pen is not None and away_pen is not None and home_score == away_score:
+                    winner = home if int(home_pen) > int(away_pen) else away
+                    output += f"🏁 {home} {home_score}-{away_score} {away} 🎯 Pens {home_pen}-{away_pen} 🏆 {winner} | {group}"
+                elif home_score == away_score and is_knockout:
+                    output += f"🏁 {home} {home_score}-{away_score} {away} (ET → Pens) | {group}"
+                else:
+                    output += f"🏁 {home} {home_score}-{away_score} {away} (FT) | {group}"
             elif status == "notstarted":
-                output += f"⏳ {home} vs {away} — {sgt_str} SGT | G{group}"
+                output += f"⏳ {home} vs {away} — {sgt_str} SGT | {group}"
             else:
-                output += f"🔴 {home} {home_score}-{away_score} {away} ({status}) | G{group}"
+                output += f"🔴 {home} {home_score}-{away_score} {away} ({status}) | {group}"
 
-            # Scorers — clean up raw JSON
+            # Scorers — parse raw JSON into clean format
             hs = g.get("home_scorers", "null")
             aus = g.get("away_scorers", "null")
             def clean_scorers(raw):
                 if not raw or raw == "null":
-                    return ""
-                s = str(raw).strip("{}").replace('"', '').replace("'", '')
-                return s
-            hs_clean = clean_scorers(hs)
-            aus_clean = clean_scorers(aus)
-            if hs_clean:
-                output += f"\n   🥅 {home}: {hs_clean}"
-            if aus_clean:
-                output += f"\n   🥅 {away}: {aus_clean}"
+                    return []
+                import re
+                # Parse format: {"Name 6'","Name2 75'"} or {"Name 6'+2'","Name2 75'"}
+                entries = re.findall(r'"([^"]+?)"', str(raw))
+                result = []
+                for entry in entries:
+                    entry = entry.strip()
+                    if entry:
+                        result.append(entry)
+                return result
+            home_scorers_list = clean_scorers(hs)
+            away_scorers_list = clean_scorers(aus)
+            for scorer in home_scorers_list:
+                output += f"\n   🥅 {home}: {scorer}"
+            for scorer in away_scorers_list:
+                output += f"\n   🥅 {away}: {scorer}"
             output += "\n"
 
     # Upcoming matches with odds (show next 5)
@@ -297,7 +314,7 @@ def main():
             sgt_dt, sgt_str = parse_local_date_to_sgt(g.get("local_date", ""))
             group = g.get("group", "?")
 
-            output += f"⏳ {home} vs {away} — {sgt_str} SGT | G{group}\n"
+            output += f"⏳ {home} vs {away} — {sgt_str} SGT | {group}\n"
 
             # Look up odds
             key = f"{home}|{away}".lower()

@@ -462,10 +462,8 @@ memory:
   user_profile_enabled: true
   write_approval: false
 model:
-  api_key: '***REDACTED***'
-  api_mode: chat_completions
   base_url: https://openrouter.ai/api/v1
-  default: openrouter/owl-alpha
+  default: nvidia/nemotron-3-super-120b-a12b:free
   provider: openrouter
 model_catalog:
   enabled: true
