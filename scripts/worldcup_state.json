@@ -109,7 +109,7 @@
     "85_home_goals": 2,
     "85_away_goals": 0,
     "93_home_goals": 0,
-    "93_away_goals": 0,
+    "93_away_goals": 1,
     "96_home_goals": 0,
     "96_away_goals": 0,
     "1_home_goals": 0,
@@ -142,8 +142,8 @@
     "90_away_goals": 3,
     "92_home_goals": 1,
     "92_away_goals": 2,
-    "94_home_goals": 0,
-    "94_away_goals": 0,
+    "94_home_goals": 1,
+    "94_away_goals": 4,
     "14_home_goals": 0,
     "14_away_goals": 0,
     "16_home_goals": 1,
@@ -264,7 +264,7 @@
     "76_status": "finished",
     "83_status": "finished",
     "85_status": "finished",
-    "93_status": "notstarted",
+    "93_status": "finished",
     "96_status": "notstarted",
     "1_status": "finished",
     "7_status": "finished",
@@ -281,7 +281,7 @@
     "84_status": "finished",
     "90_status": "finished",
     "92_status": "finished",
-    "94_status": "notstarted",
+    "94_status": "finished",
     "14_status": "finished",
     "16_status": "finished",
     "20_status": "finished",
@@ -315,5 +315,5 @@
     "99_status": "notstarted",
     "74_status": "finished"
   },
-  "last_check": "2026-07-06T21:57:06.682626+08:00"
+  "last_check": "2026-07-07T21:57:23.396428+08:00"
 }
