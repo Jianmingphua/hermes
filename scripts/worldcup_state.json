@@ -68,8 +68,8 @@
     "51_away_goals": 0,
     "87_home_goals": 1,
     "87_away_goals": 0,
-    "98_home_goals": 0,
-    "98_away_goals": 0,
+    "98_home_goals": 2,
+    "98_away_goals": 1,
     "9_home_goals": 1,
     "9_away_goals": 0,
     "10_home_goals": 7,
@@ -244,7 +244,7 @@
     "50_status": "finished",
     "51_status": "finished",
     "87_status": "finished",
-    "98_status": "notstarted",
+    "98_status": "finished",
     "9_status": "finished",
     "10_status": "finished",
     "12_status": "finished",
@@ -312,8 +312,8 @@
     "80_status": "finished",
     "82_status": "finished",
     "89_status": "finished",
-    "99_status": "notstarted",
+    "99_status": "live",
     "74_status": "finished"
   },
-  "last_check": "2026-07-10T21:58:13.598148+08:00"
+  "last_check": "2026-07-11T21:58:30.880404+08:00"
 }
