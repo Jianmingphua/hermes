@@ -364,11 +364,6 @@ def run_coo() -> str:
     """Generate COO report: upcoming events, reminders, trip status."""
     parts = []
 
-    # Check Thailand trip
-    reminder_state = _load_json(Path("/opt/hermes/scripts/reminder_state.json"))
-    if reminder_state:
-        parts.append("Thailand trip reminders active")
-
     # Check for today's cron jobs status
     try:
         result = subprocess.run(

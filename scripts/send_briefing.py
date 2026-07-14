@@ -12,7 +12,7 @@ chat_id = config.get('telegram', {}).get('chat_id', '')
 message = (
     "Good morning! Here's your daily briefing - Saturday, 20 June 2026.\n\n"
     "CFO: Account: $96,606 | No open positions | Circuit breaker tripped (L31) | 2 anomaly alerts today\n\n"
-    "COO: Thailand trip reminders active | Forex bot: running | Today is Saturday\n\n"
+    "COO: Forex bot: running | Today is Saturday\n\n"
     "CTO: Disk: 71% used | RAM: 23Gi total | Data freshness: 2/3 sources recent\n\n"
     "Weatherman: Tampines: Partly Cloudy (Day), 30.4C - good day for outdoor activities\n\n"
     "Have a great day!"
